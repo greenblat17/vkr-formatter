@@ -29,12 +29,46 @@ class VKRFormatter:
             'total_paragraphs': 0,
             'h1_found': 0,
             'h1_processed': 0,
+            'title_page_paragraphs': 0,
             'errors': 0
         }
     
+    def _is_title_page(self, paragraph) -> bool:
+        """
+        Определяет, является ли параграф частью титульного листа
+        """
+        # Проверяем стиль
+        if paragraph.style and paragraph.style.name:
+            style_name = paragraph.style.name.lower()
+            if any(keyword in style_name for keyword in ['title', 'титул', 'cover']):
+                return True
+        
+        # Проверяем содержимое
+        text = paragraph.text.strip().lower()
+        title_keywords = [
+            'министерство', 'образования', 'науки', 'федеральное', 'государственное',
+            'бюджетное', 'образовательное', 'учреждение', 'высшего', 'образования',
+            'дипломная', 'работа', 'выполнил', 'студент', 'группы', 'научный',
+            'руководитель', 'должность', 'ученая', 'степень', 'город', 'год'
+        ]
+        
+        # Если параграф содержит ключевые слова титульного листа
+        if any(keyword in text for keyword in title_keywords):
+            return True
+            
+        # Проверяем форматирование
+        if paragraph.runs:
+            for run in paragraph.runs:
+                # Если текст отцентрирован и имеет большой размер шрифта
+                if (paragraph.alignment == WD_ALIGN_PARAGRAPH.CENTER and 
+                    run.font.size and run.font.size.pt > 14):
+                    return True
+        
+        return False
+    
     def apply_formatting(self, input_path: str, formatting: Dict[str, Any], output_path: str) -> bool:
         """
-        Применяет форматирование только к заголовкам 1 уровня
+        Применяет форматирование только к заголовкам 1 уровня, пропуская титульный лист
         
         Args:
             input_path: путь к исходному документу
@@ -50,12 +84,13 @@ class VKRFormatter:
                 'total_paragraphs': 0,
                 'h1_found': 0,
                 'h1_processed': 0,
+                'title_page_paragraphs': 0,
                 'errors': 0
             }
             
             doc = Document(input_path)
             
-            # Обрабатываем только заголовки 1 уровня
+            # Обрабатываем только заголовки 1 уровня, пропуская титульный лист
             self._format_h1_headers(doc, formatting)
             
             # Сохраняем документ
@@ -70,12 +105,18 @@ class VKRFormatter:
             return False
     
     def _format_h1_headers(self, doc: Document, formatting: Dict[str, Any]) -> None:
-        """Ищет и форматирует только заголовки 1 уровня"""
+        """Ищет и форматирует только заголовки 1 уровня, пропуская титульный лист"""
         
         for paragraph in doc.paragraphs:
             self.stats['total_paragraphs'] += 1
             
             try:
+                # Пропускаем параграфы титульного листа
+                if self._is_title_page(paragraph):
+                    self.stats['title_page_paragraphs'] += 1
+                    logger.debug(f"Пропущен параграф титульного листа: '{paragraph.text[:50]}...'")
+                    continue
+                
                 # Определяем, является ли параграф заголовком 1 уровня
                 if self._is_h1_header(paragraph):
                     self.stats['h1_found'] += 1
