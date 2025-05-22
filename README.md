@@ -1,78 +1,95 @@
-# VKR Formatter
+# VKR Formatter 🎓
 
-A FastAPI-based service that automatically formats VKR (Graduate Qualification Work) documents according to university requirements. The service extracts formatting rules from a requirements document and applies them to the VKR document.
+A powerful FastAPI-based service that automatically formats VKR (Graduate Qualification Work) documents according to university requirements. The service uses GPT-3.5 to intelligently extract formatting rules from requirements documents and applies them to your VKR document with precision.
 
-## Features
+## ✨ Features
 
-- Extract formatting requirements from a requirements document using GPT-3.5
-- Apply formatting rules to VKR documents including:
-  - Font settings (name, size)
-  - Paragraph alignment
-  - Indentation
-  - Line spacing
-  - Margins
-  - And more
-- FastAPI endpoint for easy integration
-- Support for .docx files
+- 🤖 **AI-Powered Requirements Extraction**
 
-## Prerequisites
+  - Uses GPT-3.5 to intelligently parse formatting requirements
+  - Handles complex and unstructured requirement documents
+  - Extracts detailed formatting rules automatically
 
-- Python 3.8+
+- 📝 **Comprehensive Formatting**
+
+  - Font settings (name, size, style)
+  - Paragraph formatting (alignment, indentation, spacing)
+  - Document structure (margins, sections, page numbering)
+  - Table and figure formatting
+  - Citation and reference formatting
+
+- 🚀 **Easy Integration**
+  - Simple REST API endpoint
+  - FastAPI-powered with automatic OpenAPI documentation
+  - Support for .docx files
+  - Real-time processing
+
+## 🛠️ Prerequisites
+
+- Python 3.8 or higher
 - OpenAI API key
+- Basic understanding of REST APIs
 
-## Installation
+## 📦 Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 
 ```bash
 git clone https://github.com/yourusername/vrk-formatter.git
 cd vrk-formatter
 ```
 
-2. Create and activate a virtual environment:
+2. **Set up virtual environment:**
 
 ```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+.\venv\Scripts\activate
 ```
 
-3. Install dependencies:
+3. **Install dependencies:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file in the project root:
+4. **Configure environment:**
 
 ```bash
-touch .env  # On Windows use: type nul > .env
-```
+# Create .env file
+touch .env  # On Windows: type nul > .env
 
-5. Add your OpenAI API key to the `.env` file:
-
-```bash
+# Add your OpenAI API key
 echo "OPENAI_API_KEY=your-api-key-here" > .env
 ```
 
-Note: Make sure to add `.env` to your `.gitignore` file to keep your API key secure.
+## 🚀 Usage
 
-## Usage
-
-1. Start the FastAPI server:
+1. **Start the server:**
 
 ```bash
 uvicorn main:app --reload
 ```
 
-2. The API will be available at `http://localhost:8000`
+2. **Access the API:**
 
-3. Use the `/process` endpoint to format your VKR document:
-   - Send a POST request with two files:
+   - API will be available at `http://localhost:8000`
+   - Interactive documentation at `http://localhost:8000/docs`
+
+3. **Format your document:**
+   - Send a POST request to `/process` with:
      - `vkr`: Your VKR document (.docx)
-     - `requirements`: The requirements document (.docx)
-   - The endpoint will return the formatted document
+     - `requirements`: Requirements document (.docx)
+   - Receive the formatted document in response
 
-### Example using curl:
+### 📝 Example Requests
+
+**Using curl:**
 
 ```bash
 curl -X POST "http://localhost:8000/process" \
@@ -83,26 +100,57 @@ curl -X POST "http://localhost:8000/process" \
   --output formatted_vkr.docx
 ```
 
-## API Documentation
+**Using Python requests:**
 
-Once the server is running, you can access the interactive API documentation at:
+```python
+import requests
 
-- Swagger UI: `http://localhost:8000/docs`
+url = "http://localhost:8000/process"
+files = {
+    'vkr': ('vkr.docx', open('path/to/vkr.docx', 'rb')),
+    'requirements': ('requirements.docx', open('path/to/requirements.docx', 'rb'))
+}
 
-## Project Structure
+response = requests.post(url, files=files)
+with open('formatted_vkr.docx', 'wb') as f:
+    f.write(response.content)
+```
+
+## 📁 Project Structure
 
 ```
 vrk-formatter/
-├── main.py                 # FastAPI application
+├── main.py                 # FastAPI application entry point
 ├── utils/
 │   ├── extract_requirements.py  # GPT-based requirements extraction
 │   └── apply_formatting.py      # Document formatting logic
 ├── requirements.txt        # Project dependencies
 ├── .env                   # Environment variables (not in git)
-└── README.md              # This file
+└── README.md              # Project documentation
 ```
 
-## Contributing
+## 🔧 Development
+
+### Setting up development environment:
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest
+
+# Run linting
+flake8
+```
+
+### Code Style
+
+- Follow PEP 8 guidelines
+- Use type hints
+- Write docstrings for all functions
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -110,12 +158,35 @@ vrk-formatter/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+### Pull Request Process
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+1. Update the README.md with details of changes if needed
+2. Update the requirements.txt if you add new dependencies
+3. Ensure all tests pass
+4. The PR will be merged once you have the sign-off of at least one other developer
 
-## Acknowledgments
+## 📝 License
 
-- OpenAI for providing the GPT API
-- python-docx for document manipulation
-- FastAPI for the web framework
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [OpenAI](https://openai.com) for providing the GPT API
+- [python-docx](https://python-docx.readthedocs.io/) for document manipulation
+- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
+
+## 📞 Support
+
+If you encounter any issues or have questions:
+
+- Open an issue in the GitHub repository
+- Contact the maintainers
+- Check the [FAQ](docs/FAQ.md) for common questions
+
+## 🔄 Updates
+
+Stay updated with the latest changes by:
+
+- Watching the repository
+- Following the [changelog](CHANGELOG.md)
+- Checking the [releases page](https://github.com/yourusername/vrk-formatter/releases)
