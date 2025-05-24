@@ -5,6 +5,7 @@ from docx.enum.style import WD_STYLE_TYPE
 import logging
 from typing import Dict, Any, Optional, List
 import traceback
+import re
 
 # Настройка логирования
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,6 +35,9 @@ class VKRFormatter:
             'title_page_paragraphs': 0,
             'errors': 0
         }
+        # Счетчики для нумерации
+        self.current_h1_number = 0
+        self.current_h2_number = 0
     
     def _is_title_page(self, paragraph) -> bool:
         """
@@ -81,7 +85,7 @@ class VKRFormatter:
             bool: успешность операции
         """
         try:
-            # Сбрасываем статистику
+            # Сбрасываем статистику и счетчики
             self.stats = {
                 'total_paragraphs': 0,
                 'h1_found': 0,
@@ -91,10 +95,15 @@ class VKRFormatter:
                 'title_page_paragraphs': 0,
                 'errors': 0
             }
+            self.current_h1_number = 0
+            self.current_h2_number = 0
             
             doc = Document(input_path)
             
-            # Обрабатываем заголовки 1 и 2 уровня, пропуская титульный лист
+            # Сначала проходим по документу и определяем структуру
+            self._analyze_document_structure(doc)
+            
+            # Затем форматируем заголовки
             self._format_headers(doc, formatting)
             
             # Сохраняем документ
@@ -108,10 +117,42 @@ class VKRFormatter:
             logger.error(traceback.format_exc())
             return False
     
+    def _analyze_document_structure(self, doc: Document) -> None:
+        """Анализирует структуру документа для определения правильной нумерации"""
+        # Сбрасываем счетчики
+        self.current_h1_number = 0
+        self.current_h2_number = 0
+        
+        # Словарь для хранения обнаруженных заголовков с их порядковыми номерами
+        self.headers_map = {}
+        
+        # Проходим по всем параграфам и определяем структуру
+        h1_counter = 0
+        h2_counter = 0
+        last_h1_index = -1
+        
+        for i, paragraph in enumerate(doc.paragraphs):
+            if self._is_title_page(paragraph):
+                continue
+            
+            if self._is_h1_header(paragraph):
+                h1_counter += 1
+                last_h1_index = i
+                h2_counter = 0  # Сбрасываем счетчик h2 при обнаружении нового h1
+                self.headers_map[i] = {'type': 'h1', 'number': h1_counter, 'parent': None}
+                logger.debug(f"Анализ: H1 #{h1_counter} найден в позиции {i}")
+            
+            elif self._is_h2_header(paragraph):
+                h2_counter += 1
+                self.headers_map[i] = {'type': 'h2', 'number': h2_counter, 'parent': last_h1_index}
+                logger.debug(f"Анализ: H2 #{h1_counter}.{h2_counter} найден в позиции {i}")
+        
+        logger.info(f"Анализ структуры документа: обнаружено {h1_counter} заголовков H1 и несколько H2")
+    
     def _format_headers(self, doc: Document, formatting: Dict[str, Any]) -> None:
         """Ищет и форматирует заголовки 1 и 2 уровня, пропуская титульный лист"""
         
-        for paragraph in doc.paragraphs:
+        for i, paragraph in enumerate(doc.paragraphs):
             self.stats['total_paragraphs'] += 1
             
             try:
@@ -124,20 +165,35 @@ class VKRFormatter:
                 # Проверяем на H1
                 if self._is_h1_header(paragraph):
                     self.stats['h1_found'] += 1
-                    logger.info(f"Найден H1: '{paragraph.text[:50]}...'")
+                    
+                    # Получаем номер заголовка из структуры
+                    header_info = self.headers_map.get(i, {})
+                    h1_number = header_info.get('number', 0)
+                    
+                    logger.info(f"Найден H1 #{h1_number}: '{paragraph.text[:50]}...'")
                     
                     # Применяем форматирование к H1
-                    self._format_h1_paragraph(paragraph, formatting)
+                    self._format_h1_paragraph(paragraph, formatting, h1_number)
                     self.stats['h1_processed'] += 1
                     continue
                 
                 # Проверяем на H2
                 if self._is_h2_header(paragraph):
                     self.stats['h2_found'] += 1
-                    logger.info(f"Найден H2: '{paragraph.text[:50]}...'")
+                    
+                    # Получаем номер заголовка и родителя из структуры
+                    header_info = self.headers_map.get(i, {})
+                    h2_number = header_info.get('number', 0)
+                    parent_index = header_info.get('parent', -1)
+                    
+                    # Получаем номер родительского H1
+                    parent_info = self.headers_map.get(parent_index, {})
+                    h1_number = parent_info.get('number', 0)
+                    
+                    logger.info(f"Найден H2 #{h1_number}.{h2_number}: '{paragraph.text[:50]}...'")
                     
                     # Применяем форматирование к H2
-                    self._format_h2_paragraph(paragraph, formatting)
+                    self._format_h2_paragraph(paragraph, formatting, h1_number, h2_number)
                     self.stats['h2_processed'] += 1
                     
             except Exception as e:
@@ -180,7 +236,7 @@ class VKRFormatter:
         
         return False
     
-    def _format_h1_paragraph(self, paragraph, formatting: Dict[str, Any]) -> None:
+    def _format_h1_paragraph(self, paragraph, formatting: Dict[str, Any], h1_number: int = 0) -> None:
         """Применяет форматирование к заголовку 1 уровня"""
         
         # Получаем настройки для H1 из форматирования
@@ -193,12 +249,26 @@ class VKRFormatter:
                 "font_size": formatting.get("font_size_h1", formatting.get("font_size_main", 16)),
                 "alignment": formatting.get("h1_alignment", "center"),
                 "bold": formatting.get("h1_bold", True),
-                "uppercase": formatting.get("h1_uppercase", True)
+                "uppercase": formatting.get("h1_uppercase", True),
+                "space_before": formatting.get("h1_space_before", 12),
+                "space_after": formatting.get("h1_space_after", 12),
+                "numbering": formatting.get("h1_numbering", "1.")
             }
+        
+        # Применяем нумерацию, заменяя шаблон
+        numbering_template = h1_settings.get("numbering", "")
+        if numbering_template and h1_number > 0:
+            # Заменяем цифру в шаблоне на актуальный номер
+            actual_numbering = numbering_template.replace("1", str(h1_number))
+            paragraph.text = self._apply_numbering(paragraph.text, actual_numbering)
         
         # Форматируем runs
         if not paragraph.runs:
             paragraph.add_run()
+        
+        # Приводим к верхнему регистру если нужно
+        if h1_settings.get("uppercase", True):
+            paragraph.text = paragraph.text.upper()
         
         for run in paragraph.runs:
             font = run.font
@@ -211,10 +281,6 @@ class VKRFormatter:
             if h1_settings.get("bold", True):
                 font.bold = True
         
-        # Приводим к верхнему регистру если нужно
-        if h1_settings.get("uppercase", True):
-            paragraph.text = paragraph.text.upper()
-        
         # Выравнивание
         alignment = h1_settings.get("alignment", "center")
         paragraph.alignment = self.ALIGN_MAP.get(alignment, WD_ALIGN_PARAGRAPH.CENTER)
@@ -224,9 +290,9 @@ class VKRFormatter:
         pf.space_before = Pt(h1_settings.get("space_before", 12))
         pf.space_after = Pt(h1_settings.get("space_after", 12))
         
-        logger.info(f"H1 отформатирован: {paragraph.text[:30]}...")
+        logger.info(f"H1 #{h1_number} отформатирован: {paragraph.text[:30]}...")
     
-    def _format_h2_paragraph(self, paragraph, formatting: Dict[str, Any]) -> None:
+    def _format_h2_paragraph(self, paragraph, formatting: Dict[str, Any], h1_number: int = 0, h2_number: int = 0) -> None:
         """Применяет форматирование к заголовку 2 уровня"""
         
         # Получаем настройки для H2 из форматирования
@@ -241,12 +307,27 @@ class VKRFormatter:
                 "bold": formatting.get("h2_bold", True),
                 "uppercase": formatting.get("h2_uppercase", False),
                 "space_before": formatting.get("h2_space_before", 12),
-                "space_after": formatting.get("h2_space_after", 12)
+                "space_after": formatting.get("h2_space_after", 12),
+                "numbering": formatting.get("h2_numbering", "1.1.")
             }
+        
+        # Применяем нумерацию, заменяя шаблон
+        numbering_template = h2_settings.get("numbering", "")
+        if numbering_template and h1_number > 0 and h2_number > 0:
+            # Заменяем цифры в шаблоне на актуальные номера
+            actual_numbering = numbering_template.replace("1.1", f"{h1_number}.{h2_number}")
+            if actual_numbering == numbering_template:  # Если замена не произошла
+                actual_numbering = numbering_template.replace("1", str(h1_number))
+                actual_numbering = actual_numbering.replace("1", str(h2_number), 1)
+            paragraph.text = self._apply_numbering(paragraph.text, actual_numbering)
         
         # Форматируем runs
         if not paragraph.runs:
             paragraph.add_run()
+        
+        # Приводим к верхнему регистру если нужно
+        if h2_settings.get("uppercase", False):
+            paragraph.text = paragraph.text.upper()
         
         for run in paragraph.runs:
             font = run.font
@@ -259,10 +340,6 @@ class VKRFormatter:
             if h2_settings.get("bold", True):
                 font.bold = True
         
-        # Приводим к верхнему регистру если нужно
-        if h2_settings.get("uppercase", False):
-            paragraph.text = paragraph.text.upper()
-        
         # Выравнивание
         alignment = h2_settings.get("alignment", "left")
         paragraph.alignment = self.ALIGN_MAP.get(alignment, WD_ALIGN_PARAGRAPH.LEFT)
@@ -272,7 +349,7 @@ class VKRFormatter:
         pf.space_before = Pt(h2_settings.get("space_before", 12))
         pf.space_after = Pt(h2_settings.get("space_after", 12))
         
-        logger.info(f"H2 отформатирован: {paragraph.text[:30]}...")
+        logger.info(f"H2 #{h1_number}.{h2_number} отформатирован: {paragraph.text[:30]}...")
     
     def validate_formatting(self, formatting: Dict[str, Any]) -> Dict[str, Any]:
         """Валидирует форматирование для H1 и H2"""
@@ -291,7 +368,8 @@ class VKRFormatter:
             "bold": h1_formatting.get("bold", True),
             "uppercase": h1_formatting.get("uppercase", True),
             "space_before": max(0, h1_formatting.get("space_before", 12)),
-            "space_after": max(0, h1_formatting.get("space_after", 12))
+            "space_after": max(0, h1_formatting.get("space_after", 12)),
+            "numbering": h1_formatting.get("numbering", "1.")
         }
         
         # Настройки для H2
@@ -303,7 +381,8 @@ class VKRFormatter:
             "bold": h2_formatting.get("bold", True),
             "uppercase": h2_formatting.get("uppercase", False),
             "space_before": max(0, h2_formatting.get("space_before", 12)),
-            "space_after": max(0, h2_formatting.get("space_after", 12))
+            "space_after": max(0, h2_formatting.get("space_after", 12)),
+            "numbering": h2_formatting.get("numbering", "1.1.")
         }
         
         return validated
@@ -311,6 +390,27 @@ class VKRFormatter:
     def get_stats(self) -> Dict[str, int]:
         """Возвращает статистику обработки"""
         return self.stats.copy()
+
+    def _apply_numbering(self, text, numbering):
+        """Применяет нумерацию к тексту, учитывая текущий формат"""
+        if not numbering:
+            return text
+        
+        # Удаляем пробелы в начале
+        text = text.lstrip()
+        
+        # Если уже начинается с нужной нумерации — ничего не делаем
+        if text.startswith(numbering):
+            return text
+        
+        # Если начинается с другой нумерации — заменяем
+        pattern = r'^\d+(\.\d+)*\.?\s*'
+        if re.match(pattern, text):
+            text_wo_numbering = re.sub(pattern, '', text)
+            return f"{numbering} {text_wo_numbering.lstrip()}"
+        
+        # Если нумерации нет — просто добавляем
+        return f"{numbering} {text}"
 
 
 def apply_formatting(input_path: str, formatting: Dict[str, Any], output_path: str) -> bool:
