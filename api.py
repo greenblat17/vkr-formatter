@@ -1,14 +1,17 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 import tempfile
 import shutil
 import logging
 from pathlib import Path
 import json
+import os
 from datetime import datetime
+from typing import Optional
 
 # Импорты наших модулей
 from vkr_requirements_stub import analyze_requirements_stub
+from vkr_fomatter import format_vkr_document
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +31,15 @@ stats = {
     "failed": 0,
     "last_processed": None
 }
+
+def cleanup_temp_file(file_path: str):
+    """Удаляет временный файл"""
+    try:
+        if os.path.exists(file_path):
+            os.unlink(file_path)
+            logger.info(f"Временный файл удален: {file_path}")
+    except Exception as e:
+        logger.warning(f"Не удалось удалить временный файл {file_path}: {e}")
 
 @app.get("/")
 async def root():
@@ -63,8 +75,9 @@ async def get_stats():
 
 @app.post("/format")
 async def format_vkr(
+    background_tasks: BackgroundTasks,
     vkr: UploadFile = File(..., description="Файл ВКР в формате .docx"),
-    requirements: UploadFile = File(None, description="Файл требований (опционально, используется заглушка)")
+    requirements: Optional[UploadFile] = File(default=None, description="Файл требований (опционально, используется заглушка)")
 ):
     """
     Форматирует ВКР согласно требованиям
@@ -73,7 +86,7 @@ async def format_vkr(
     - Обрабатывает H1, H2, списки, базовое форматирование
     - Пропускает шаблонные страницы
     """
-    
+
     # Обновляем статистику
     stats["total_processed"] += 1
     stats["last_processed"] = datetime.now().isoformat()
@@ -85,7 +98,7 @@ async def format_vkr(
             detail="Файл ВКР должен быть в формате .docx или .doc"
         )
     
-    # Создаем временную директорию
+    # Создаем временную директорию для обработки
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
         
@@ -102,25 +115,21 @@ async def format_vkr(
                 shutil.copyfileobj(vkr.file, f)
             logger.info(f"ВКР сохранен: {vkr_path}")
             
-            # Сохраняем файл требований если есть
-            if requirements:
-                with open(req_path, "wb") as f:
-                    shutil.copyfileobj(requirements.file, f)
-                logger.info(f"Требования сохранены: {req_path}")
-                
-                # Анализируем требования (пока заглушка)
-                vkr_requirements = analyze_requirements_stub(str(req_path))
-            else:
-                logger.info("Используем требования по умолчанию")
-                vkr_requirements = analyze_requirements_stub("default")
+            logger.info("Используем требования по умолчанию")
+            vkr_requirements = analyze_requirements_stub("default")
             
             # Форматируем документ
             logger.info("Применяем форматирование...")
+            logger.info(f"Входной файл: {vkr_path} (существует: {vkr_path.exists()})")
+            logger.info(f"Выходной файл: {output_path}")
+            
             success, format_stats = format_vkr_document(
                 str(vkr_path), 
                 vkr_requirements, 
                 str(output_path)
             )
+            
+            logger.info(f"Результат форматирования: success={success}, stats={format_stats}")
             
             if not success:
                 stats["failed"] += 1
@@ -130,12 +139,22 @@ async def format_vkr(
                 )
             
             # Проверяем результат
+            logger.info(f"Проверяем существование выходного файла: {output_path}")
+            logger.info(f"Файл существует: {output_path.exists()}")
+            
             if not output_path.exists():
                 stats["failed"] += 1
+                # Давайте попробуем найти файл в директории
+                logger.error(f"Содержимое временной директории: {list(tmpdir_path.iterdir())}")
                 raise HTTPException(
                     status_code=500, 
-                    detail="Отформатированный файл не был создан"
+                    detail=f"Отформатированный файл не был создан. Ожидался: {output_path}"
                 )
+            
+            # ВАЖНО: Копируем файл в новое временное место перед выходом из контекста
+            final_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+            shutil.copy2(output_path, final_temp_file.name)
+            final_temp_file.close()
             
             stats["successful"] += 1
             
@@ -145,18 +164,6 @@ async def format_vkr(
             
             logger.info(f"Форматирование завершено успешно: {output_filename}")
             logger.info(f"Статистика форматирования: {format_stats}")
-            
-            # Возвращаем файл
-            return FileResponse(
-                path=str(output_path),
-                filename=output_filename,
-                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                headers={
-                    "X-Format-Stats": json.dumps(format_stats),
-                    "X-Requirements-Source": "file" if requirements else "default",
-                    "X-Version": "2.0.0"
-                }
-            )
             
         except HTTPException:
             # Пробрасываем HTTP ошибки
@@ -169,6 +176,21 @@ async def format_vkr(
                 status_code=500,
                 detail=f"Внутренняя ошибка сервера: {str(e)}"
             )
+    
+    # Возвращаем файл (уже вне контекста with)
+    # Добавляем задачу на удаление файла после отправки
+    background_tasks.add_task(cleanup_temp_file, final_temp_file.name)
+    
+    return FileResponse(
+        path=final_temp_file.name,
+        filename=output_filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "X-Format-Stats": json.dumps(format_stats),
+            "X-Requirements-Source": "file" if requirements else "default",
+            "X-Version": "2.0.0"
+        }
+    )
 
 # Обработчик ошибок
 @app.exception_handler(Exception)

@@ -4,6 +4,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_BREAK
 import re
 import logging
 from typing import Dict, Any, List
+from pathlib import Path
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -55,24 +56,46 @@ class SimpleVKRFormatter:
         """
         try:
             logger.info(f"Начинаем форматирование: {input_path}")
+            logger.info(f"Выходной путь: {output_path}")
+            
+            # Проверяем входной файл
+            input_file = Path(input_path)
+            if not input_file.exists():
+                logger.error(f"Входной файл не существует: {input_path}")
+                return False
             
             # Загружаем документ
+            logger.info("Загружаем документ...")
             doc = Document(input_path)
+            logger.info(f"Документ загружен, параграфов: {len(doc.paragraphs)}")
             
             # Шаг 1: Применяем глобальные настройки (поля, базовый шрифт)
+            logger.info("Применяем глобальные настройки...")
             self._apply_global_settings(doc)
             
             # Шаг 2: Обрабатываем каждый параграф
+            logger.info("Обрабатываем параграфы...")
             self._process_all_paragraphs(doc)
             
             # Шаг 3: Сохраняем результат
+            logger.info(f"Сохраняем документ в: {output_path}")
             doc.save(output_path)
+            
+            # Проверяем, что файл создался
+            output_file = Path(output_path)
+            if output_file.exists():
+                logger.info(f"Файл успешно создан, размер: {output_file.stat().st_size} байт")
+            else:
+                logger.error(f"Файл НЕ создался: {output_path}")
+                return False
             
             logger.info(f"Форматирование завершено успешно. Статистика: {self.stats}")
             return True
             
         except Exception as e:
             logger.error(f"Ошибка форматирования: {e}")
+            import traceback
+            logger.error(f"Полная трассировка: {traceback.format_exc()}")
             return False
     
     def _apply_global_settings(self, doc: Document) -> None:
