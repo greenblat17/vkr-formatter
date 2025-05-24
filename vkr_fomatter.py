@@ -29,6 +29,13 @@ class SimpleVKRFormatter:
             'errors': 0
         }
         
+        # Состояние обработки документа
+        self.document_state = {
+            'in_title_section': True,  # Начинаем с предположения, что мы в титульной секции
+            'found_main_content': False,  # Нашли ли основное содержание
+            'pages_skipped': 0  # Количество пропущенных страниц
+        }
+        
         # Маппинги для удобства
         self.align_map = {
             "left": WD_ALIGN_PARAGRAPH.LEFT,
@@ -120,41 +127,54 @@ class SimpleVKRFormatter:
     def _process_all_paragraphs(self, doc: Document) -> None:
         """Обрабатывает все параграфы документа"""
         
-        for paragraph in doc.paragraphs:
+        logger.info("Начинаем обработку параграфов...")
+        
+        for i, paragraph in enumerate(doc.paragraphs):
             self.stats['total_paragraphs'] += 1
             
             try:
+                text = paragraph.text.strip()
+                
                 # Определяем тип параграфа
-                paragraph_type = self._classify_paragraph(paragraph.text.strip())
+                paragraph_type = self._classify_paragraph(text)
+                
+                # Логируем каждый параграф для отладки
+                if text:  # Логируем только непустые
+                    logger.debug(f"Параграф {i+1}: тип='{paragraph_type}', текст='{text[:100]}{'...' if len(text) > 100 else ''}'")
                 
                 # Применяем соответствующее форматирование
                 if paragraph_type == "skip":
                     self.stats['skipped_paragraphs'] += 1
-                    logger.debug(f"Пропускаем: {paragraph.text[:50]}...")
+                    logger.info(f"ПРОПУСКАЕМ параграф {i+1}: {text[:80]}{'...' if len(text) > 80 else ''}")
                     
                 elif paragraph_type == "h1":
                     self._format_h1_paragraph(paragraph)
                     self.stats['h1_formatted'] += 1
+                    logger.info(f"H1 форматирован: {text[:50]}...")
                     
                 elif paragraph_type == "h2":
                     self._format_h2_paragraph(paragraph)
                     self.stats['h2_formatted'] += 1
+                    logger.info(f"H2 форматирован: {text[:50]}...")
                     
                 elif paragraph_type == "list":
                     self._format_list_paragraph(paragraph)
                     self.stats['lists_formatted'] += 1
+                    logger.debug(f"Список форматирован: {text[:50]}...")
                     
                 else:  # regular
                     self._format_regular_paragraph(paragraph)
                     self.stats['regular_formatted'] += 1
                     
             except Exception as e:
-                logger.warning(f"Ошибка обработки параграфа: {e}")
+                logger.warning(f"Ошибка обработки параграфа {i+1}: {e}")
                 self.stats['errors'] += 1
+        
+        logger.info(f"Обработка параграфов завершена. Статистика: {self.stats}")
     
     def _classify_paragraph(self, text: str) -> str:
         """
-        Классифицирует тип параграфа
+        Классифицирует тип параграфа с учетом состояния документа
         
         Returns:
             str: "skip", "h1", "h2", "list", "regular"
@@ -162,41 +182,170 @@ class SimpleVKRFormatter:
         if not text:
             return "skip"
         
-        # 1. Проверяем, нужно ли пропустить
-        if self._should_skip_paragraph(text):
+        text_clean = text.strip()
+        
+        # 1. Проверяем, начинается ли основное содержание
+        if self._is_main_content_start(text_clean):
+            logger.info(f"🟢 НАЙДЕНО НАЧАЛО ОСНОВНОГО СОДЕРЖАНИЯ: {text_clean[:60]}...")
+            self.document_state['in_title_section'] = False
+            self.document_state['found_main_content'] = True
+            
+            # Определяем тип этого параграфа (скорее всего H1)
+            if self._is_h1_paragraph_content(text_clean):
+                return "h1"
+            elif self._is_h2_paragraph_content(text_clean):
+                return "h2"
+            else:
+                return "regular"
+        
+        # 2. Если мы все еще в титульной секции
+        if self.document_state['in_title_section']:
+            
+            # Проверяем, подтверждает ли этот параграф, что мы в титульной секции
+            if self._is_title_page_content(text_clean) or self._is_service_content(text_clean):
+                logger.debug(f"🔴 ПОДТВЕРЖДЕНИЕ ТИТУЛЬНОЙ СЕКЦИИ: {text_clean[:60]}...")
+                return "skip"
+            
+            # Если это не явный маркер титульной страницы, но мы еще не нашли основное содержание
+            # продолжаем пропускать (может быть продолжение титульной страницы)
+            logger.debug(f"🟡 ПРОПУСКАЕМ (В ТИТУЛЬНОЙ СЕКЦИИ): {text_clean[:60]}...")
             return "skip"
         
-        # 2. Проверяем H1
-        if self._is_h1_paragraph(text):
+        # 3. Мы уже в основном содержании - классифицируем как обычно
+        
+        # Проверяем H1
+        if self._is_h1_paragraph_content(text_clean):
             return "h1"
         
-        # 3. Проверяем H2
-        if self._is_h2_paragraph(text):
+        # Проверяем H2
+        if self._is_h2_paragraph_content(text_clean):
             return "h2"
         
-        # 4. Проверяем список
-        if self._is_list_paragraph(text):
+        # Проверяем список
+        if self._is_list_paragraph(text_clean):
             return "list"
         
-        # 5. Обычный параграф
+        # Обычный параграф
         return "regular"
     
-    def _should_skip_paragraph(self, text: str) -> bool:
-        """Проверяет, нужно ли пропустить параграф"""
+    def _is_main_content_start(self, text: str) -> bool:
+        """Определяет начало основного содержания ВКР"""
         
-        skip_sections = self.requirements["skip_sections"]
+        text_upper = text.upper().strip()
+        
+        # Маркеры начала основного содержания
+        main_content_markers = [
+            "ВВЕДЕНИЕ",
+            "ГЛАВА 1",
+            "1. ВВЕДЕНИЕ",
+            "1 ВВЕДЕНИЕ", 
+            "CHAPTER 1",
+            "РЕФЕРАТ",
+            "ABSTRACT",
+            "АННОТАЦИЯ",
+            "СОДЕРЖАНИЕ",
+            "ОГЛАВЛЕНИЕ"
+        ]
+        
+        # Точные совпадения
+        for marker in main_content_markers:
+            if text_upper == marker or text_upper.startswith(marker):
+                return True
+        
+        # Паттерны для глав
+        chapter_patterns = [
+            r"^ГЛАВА\s+\d+",  # "ГЛАВА 1", "ГЛАВА 2"
+            r"^\d+\.\s*[А-ЯЁ]",  # "1. ВВЕДЕНИЕ", "2. ОБЗОР"
+            r"^\d+\s+[А-ЯЁ]",    # "1 ВВЕДЕНИЕ", "2 ОБЗОР"
+        ]
+        
+        for pattern in chapter_patterns:
+            if re.match(pattern, text_upper):
+                return True
+        
+        return False
+    
+    def _is_title_page_content(self, text: str) -> bool:
+        """Определяет содержимое титульного листа"""
+        
         text_upper = text.upper()
         
-        # Проверяем все категории для пропуска
-        for category, keywords in skip_sections.items():
-            for keyword in keywords:
-                if keyword.upper() in text_upper:
+        # Строгие маркеры титульного листа
+        title_markers = [
+            "ДИПЛОМНАЯ РАБОТА",
+            "ВЫПУСКНАЯ КВАЛИФИКАЦИОННАЯ РАБОТА", 
+            "МИНИСТЕРСТВО ОБРАЗОВАНИЯ",
+            "МИНИСТЕРСТВО НАУКИ",
+            "ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ",
+            "ОБРАЗОВАТЕЛЬНОЕ УЧРЕЖДЕНИЕ",
+            "ВЫСШЕГО ОБРАЗОВАНИЯ",
+            "КАФЕДРА",
+            "НАПРАВЛЕНИЕ ПОДГОТОВКИ",
+            "ПРОФИЛЬ",
+            "ТЕМА:",
+            "ВЫПОЛНИЛ:",
+            "СТУДЕНТ",
+            "ГРУППЫ",
+            "НАУЧНЫЙ РУКОВОДИТЕЛЬ",
+            "КОНСУЛЬТАНТ",
+            "ДОПУЩЕН К ЗАЩИТЕ",
+            "РАБОТА ВЫПОЛНЕНА",
+            "ОЦЕНКА",
+            "ПОДПИСЬ"
+        ]
+        
+        for marker in title_markers:
+            if marker in text_upper:
+                return True
+        
+        # Паттерны для ФИО и должностей
+        fio_patterns = [
+            r"[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.",  # Иванов И.И.
+            r"[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+",  # Иванов Иван Иванович
+        ]
+        
+        for pattern in fio_patterns:
+            if re.search(pattern, text):
+                return True
+        
+        # Если текст короткий и состоит в основном из заглавных букв (заголовок титульника)
+        if len(text) < 200:
+            alpha_chars = [c for c in text if c.isalpha()]
+            if alpha_chars:
+                upper_ratio = sum(1 for c in alpha_chars if c.isupper()) / len(alpha_chars)
+                # Для титульника характерны короткие строки с высоким процентом заглавных букв
+                if upper_ratio > 0.8 and len(text.split()) <= 5:
                     return True
         
         return False
     
-    def _is_h1_paragraph(self, text: str) -> bool:
-        """Проверяет, является ли параграф заголовком H1"""
+    def _is_service_content(self, text: str) -> bool:
+        """Определяет другие служебные разделы (задание, календарный план и т.д.)"""
+        
+        text_upper = text.upper()
+        
+        service_markers = [
+            "ЗАДАНИЕ НА",
+            "КАЛЕНДАРНЫЙ ПЛАН",
+            "КАЛЕНДАРНО-ТЕМАТИЧЕСКИЙ",
+            "ТЕХНИЧЕСКОЕ ЗАДАНИЕ",
+            "УТВЕРЖДАЮ",
+            "РАССМОТРЕНО",
+            "СОГЛАСОВАНО",
+            "ОТЗЫВ",
+            "РЕЦЕНЗИЯ",
+            "СПРАВКА О ВНЕДРЕНИИ",
+            "АКТ О ВНЕДРЕНИИ"
+        ]
+        
+        for marker in service_markers:
+            if marker in text_upper:
+                return True
+        
+        return False
+    
+    def _is_h1_paragraph_content(self, text: str) -> bool:
+        """Проверяет, является ли параграф заголовком H1 (только для основного содержания)"""
         
         patterns = self.requirements["h1_formatting"]["detection_patterns"]
         
@@ -214,8 +363,8 @@ class SimpleVKRFormatter:
         
         return False
     
-    def _is_h2_paragraph(self, text: str) -> bool:
-        """Проверяет, является ли параграф заголовком H2"""
+    def _is_h2_paragraph_content(self, text: str) -> bool:
+        """Проверяет, является ли параграф заголовком H2 (только для основного содержания)"""
         
         patterns = self.requirements["h2_formatting"]["detection_patterns"]
         
@@ -421,7 +570,12 @@ class SimpleVKRFormatter:
     
     def get_statistics(self) -> Dict[str, int]:
         """Возвращает статистику обработки"""
-        return self.stats.copy()
+        stats = self.stats.copy()
+        stats.update({
+            'title_pages_detected': 1 if self.document_state['found_main_content'] else 0,
+            'main_content_found': self.document_state['found_main_content']
+        })
+        return stats
 
 
 # Главная функция для использования в API
