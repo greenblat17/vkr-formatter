@@ -8,14 +8,11 @@ import json
 import os
 from datetime import datetime
 from typing import Optional
+from logger_config import api_logger as logger
 
 # Импорты наших модулей
 from vkr_requirements_stub import analyze_requirements_stub
 from vkr_fomatter import format_vkr_document
-
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 # Создаем приложение
 app = FastAPI(
@@ -108,20 +105,20 @@ async def format_vkr(
         output_path = tmpdir_path / "formatted_vkr.docx"
         
         try:
-            logger.info(f"Начинаем обработку ВКР: {vkr.filename}")
+            logger.info(f"📁 Начинаем обработку ВКР: {vkr.filename}")
             
             # Сохраняем файл ВКР
             with open(vkr_path, "wb") as f:
                 shutil.copyfileobj(vkr.file, f)
-            logger.info(f"ВКР сохранен: {vkr_path}")
+            logger.info(f"💾 ВКР сохранен: {vkr_path}")
             
-            logger.info("Используем требования по умолчанию")
+            logger.info("📋 Используем требования по умолчанию")
             vkr_requirements = analyze_requirements_stub("default")
             
             # Форматируем документ
-            logger.info("Применяем форматирование...")
-            logger.info(f"Входной файл: {vkr_path} (существует: {vkr_path.exists()})")
-            logger.info(f"Выходной файл: {output_path}")
+            logger.info("🚀 Применяем форматирование...")
+            logger.info(f"📄 Входной файл: {vkr_path} (существует: {vkr_path.exists()})")
+            logger.info(f"📄 Выходной файл: {output_path}")
             
             success, format_stats = format_vkr_document(
                 str(vkr_path), 
@@ -129,7 +126,7 @@ async def format_vkr(
                 str(output_path)
             )
             
-            logger.info(f"Результат форматирования: success={success}, stats={format_stats}")
+            logger.info(f"📊 Результат форматирования: success={success}, stats={format_stats}")
             
             if not success:
                 stats["failed"] += 1
@@ -139,13 +136,13 @@ async def format_vkr(
                 )
             
             # Проверяем результат
-            logger.info(f"Проверяем существование выходного файла: {output_path}")
-            logger.info(f"Файл существует: {output_path.exists()}")
+            logger.info(f"🔍 Проверяем существование выходного файла: {output_path}")
+            logger.info(f"✅ Файл существует: {output_path.exists()}")
             
             if not output_path.exists():
                 stats["failed"] += 1
                 # Давайте попробуем найти файл в директории
-                logger.error(f"Содержимое временной директории: {list(tmpdir_path.iterdir())}")
+                logger.error(f"📂 Содержимое временной директории: {list(tmpdir_path.iterdir())}")
                 raise HTTPException(
                     status_code=500, 
                     detail=f"Отформатированный файл не был создан. Ожидался: {output_path}"
@@ -162,8 +159,8 @@ async def format_vkr(
             original_name = Path(vkr.filename).stem
             output_filename = f"{original_name}_formatted.docx"
             
-            logger.info(f"Форматирование завершено успешно: {output_filename}")
-            logger.info(f"Статистика форматирования: {format_stats}")
+            logger.info(f"🎉 Форматирование завершено успешно: {output_filename}")
+            logger.info(f"📈 Статистика форматирования: {format_stats}")
             
         except HTTPException:
             # Пробрасываем HTTP ошибки

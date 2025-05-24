@@ -5,10 +5,40 @@ import re
 import logging
 from typing import Dict, Any, List
 from pathlib import Path
+import colorlog
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Настройка цветного логирования
+def setup_colored_logging():
+    """Настраивает цветное логирование"""
+    
+    # Создаем цветной форматтер
+    color_formatter = colorlog.ColoredFormatter(
+        '%(log_color)s%(asctime)s - %(levelname)-8s%(reset)s %(message)s',
+        datefmt='%H:%M:%S',
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'green', 
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white',
+        },
+        secondary_log_colors={},
+        style='%'
+    )
+    
+    # Настраиваем handler
+    handler = colorlog.StreamHandler()
+    handler.setFormatter(color_formatter)
+    
+    # Настраиваем логгер
+    logger = colorlog.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    logger.addHandler(handler)
+    
+    return logger
+
+logger = setup_colored_logging()
 
 class SimpleVKRFormatter:
     """Простой и понятный форматтер ВКР"""
@@ -62,41 +92,41 @@ class SimpleVKRFormatter:
             bool: успешность операции
         """
         try:
-            logger.info(f"Начинаем форматирование: {input_path}")
-            logger.info(f"Выходной путь: {output_path}")
+            logger.info(f"📂 Начинаем форматирование: {input_path}")
+            logger.info(f"💾 Выходной путь: {output_path}")
             
             # Проверяем входной файл
             input_file = Path(input_path)
             if not input_file.exists():
-                logger.error(f"Входной файл не существует: {input_path}")
+                logger.error(f"❌ Входной файл не существует: {input_path}")
                 return False
             
             # Загружаем документ
-            logger.info("Загружаем документ...")
+            logger.info("📖 Загружаем документ...")
             doc = Document(input_path)
-            logger.info(f"Документ загружен, параграфов: {len(doc.paragraphs)}")
+            logger.info(f"✅ Документ загружен, параграфов: {len(doc.paragraphs)}")
             
             # Шаг 1: Применяем глобальные настройки (поля, базовый шрифт)
-            logger.info("Применяем глобальные настройки...")
+            logger.info("⚙️  Применяем глобальные настройки...")
             self._apply_global_settings(doc)
             
             # Шаг 2: Обрабатываем каждый параграф
-            logger.info("Обрабатываем параграфы...")
+            logger.info("🔄 Обрабатываем параграфы...")
             self._process_all_paragraphs(doc)
             
             # Шаг 3: Сохраняем результат
-            logger.info(f"Сохраняем документ в: {output_path}")
+            logger.info(f"💾 Сохраняем документ в: {output_path}")
             doc.save(output_path)
             
             # Проверяем, что файл создался
             output_file = Path(output_path)
             if output_file.exists():
-                logger.info(f"Файл успешно создан, размер: {output_file.stat().st_size} байт")
+                logger.info(f"✅ Файл создан, размер: {output_file.stat().st_size} байт")
             else:
-                logger.error(f"Файл НЕ создался: {output_path}")
+                logger.error(f"❌ Файл НЕ создался: {output_path}")
                 return False
             
-            logger.info(f"Форматирование завершено успешно. Статистика: {self.stats}")
+            logger.info(f"🎉 Форматирование завершено! Статистика: {self.stats}")
             return True
             
         except Exception as e:
@@ -145,22 +175,22 @@ class SimpleVKRFormatter:
                 # Применяем соответствующее форматирование
                 if paragraph_type == "skip":
                     self.stats['skipped_paragraphs'] += 1
-                    logger.info(f"ПРОПУСКАЕМ параграф {i+1}: {text[:80]}{'...' if len(text) > 80 else ''}")
+                    logger.info(f"⏭️  ПРОПУСК #{i+1}: {text[:60]}{'...' if len(text) > 60 else ''}")
                     
                 elif paragraph_type == "h1":
                     self._format_h1_paragraph(paragraph)
                     self.stats['h1_formatted'] += 1
-                    logger.info(f"H1 форматирован: {text[:50]}...")
+                    logger.info(f"📝 H1 #{i+1}: {text[:40]}...")
                     
                 elif paragraph_type == "h2":
                     self._format_h2_paragraph(paragraph)
                     self.stats['h2_formatted'] += 1
-                    logger.info(f"H2 форматирован: {text[:50]}...")
+                    logger.info(f"📄 H2 #{i+1}: {text[:40]}...")
                     
                 elif paragraph_type == "list":
                     self._format_list_paragraph(paragraph)
                     self.stats['lists_formatted'] += 1
-                    logger.debug(f"Список форматирован: {text[:50]}...")
+                    logger.debug(f"📋 СПИСОК #{i+1}: {text[:40]}...")
                     
                 else:  # regular
                     self._format_regular_paragraph(paragraph)
@@ -186,7 +216,7 @@ class SimpleVKRFormatter:
         
         # 1. Проверяем, начинается ли основное содержание
         if self._is_main_content_start(text_clean):
-            logger.info(f"🟢 НАЙДЕНО НАЧАЛО ОСНОВНОГО СОДЕРЖАНИЯ: {text_clean[:60]}...")
+            logger.info(f"🟢 НАЧАЛО ОСНОВНОГО СОДЕРЖАНИЯ: {text_clean[:60]}...")
             self.document_state['in_title_section'] = False
             self.document_state['found_main_content'] = True
             
@@ -203,12 +233,12 @@ class SimpleVKRFormatter:
             
             # Проверяем, подтверждает ли этот параграф, что мы в титульной секции
             if self._is_title_page_content(text_clean) or self._is_service_content(text_clean):
-                logger.debug(f"🔴 ПОДТВЕРЖДЕНИЕ ТИТУЛЬНОЙ СЕКЦИИ: {text_clean[:60]}...")
+                logger.debug(f"🔴 ТИТУЛЬНАЯ СЕКЦИЯ: {text_clean[:50]}...")
                 return "skip"
             
             # Если это не явный маркер титульной страницы, но мы еще не нашли основное содержание
             # продолжаем пропускать (может быть продолжение титульной страницы)
-            logger.debug(f"🟡 ПРОПУСКАЕМ (В ТИТУЛЬНОЙ СЕКЦИИ): {text_clean[:60]}...")
+            logger.debug(f"⚪ ПРОПУСК (титульная): {text_clean[:50]}...")
             return "skip"
         
         # 3. Мы уже в основном содержании - классифицируем как обычно
