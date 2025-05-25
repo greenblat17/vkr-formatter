@@ -12,7 +12,7 @@ from logger_config import api_logger as logger
 
 # Импорты наших модулей
 from vkr_requirements_stub import analyze_requirements_stub
-from vkr_fomatter import format_vkr_document
+from vkr_formatter import format_vkr_document
 
 # Создаем приложение
 app = FastAPI(
