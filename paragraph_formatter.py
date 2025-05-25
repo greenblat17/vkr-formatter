@@ -11,26 +11,29 @@ class ParagraphFormatter:
     def __init__(self, requirements: Dict[str, Any]):
         self.requirements = requirements
 
-    def format_h1(self, paragraph) -> None:
+    def format_h1(self, paragraph, h1_count_before: int = 0) -> None:
         """Форматирует заголовок H1 согласно требованиям ГОСТ"""
         try:
             config = self.requirements["h1_formatting"]
             
             logger.info(f"🔤 Форматирование H1: {paragraph.text[:50]}...")
 
-            # 1. Разрыв страницы перед заголовком (кроме первого)
-            if config.get("page_break_before", False) and self._not_first_paragraph(paragraph):
-                self._add_page_break_before(paragraph)
-                logger.debug("   ↳ Добавлен разрыв страницы")
+            # 1. Сначала преобразуем в заглавные буквы (если нужно)
+            if config.get("text_transform") == "uppercase":
+                self._make_text_uppercase(paragraph, config)
+                logger.debug("   ↳ Текст преобразован в ЗАГЛАВНЫЕ БУКВЫ")
 
             # 2. Применяем шрифт и размер
             self._apply_font_formatting(paragraph, config)
             logger.debug(f"   ↳ Шрифт: {config['font_name']}, {config['font_size']}pt, жирный")
 
-            # 3. Преобразуем в заглавные буквы
-            if config.get("text_transform") == "uppercase":
-                self._make_text_uppercase(paragraph, config)
-                logger.debug("   ↳ Текст преобразован в ЗАГЛАВНЫЕ БУКВЫ")
+            # 3. Разрыв страницы перед заголовком (кроме самого первого H1 в документе)
+            # ВАЖНО: добавляем разрыв ПОСЛЕ всех текстовых преобразований!
+            if config.get("page_break_before", False) and h1_count_before > 0:
+                self._add_page_break_before(paragraph)
+                logger.debug(f"   ↳ Добавлен разрыв страницы (H1 #{h1_count_before + 1})")
+            else:
+                logger.debug(f"   ↳ Разрыв страницы НЕ добавлен (первый H1 в документе)")
 
             # 4. Выравнивание по центру
             paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
@@ -210,16 +213,123 @@ class ParagraphFormatter:
             font.bold = True
 
     def _add_page_break_before(self, paragraph) -> None:
-        """Добавляет разрыв страницы"""
-        if paragraph.runs:
-            first_run = paragraph.runs[0]
-            first_run.add_break(WD_BREAK.PAGE)
-        else:
-            run = paragraph.add_run()
-            run.add_break(WD_BREAK.PAGE)
+        """Добавляет разрыв страницы перед параграфом используя свойства параграфа"""
+        try:
+            # Используем свойство page_break_before параграфа
+            # Это более элегантное решение, чем добавление элементов разрыва
+            pf = paragraph.paragraph_format
+            pf.page_break_before = True
+            
+            logger.debug(f"   ✅ Разрыв страницы установлен для параграфа: {paragraph.text[:30]}...")
+            
+        except Exception as e:
+            logger.error(f"   ❌ Ошибка установки разрыва страницы: {e}")
+            # Fallback: используем старый метод с элементами разрыва
+            try:
+                if paragraph.runs:
+                    first_run = paragraph.runs[0]
+                    # Сохраняем текст первого run
+                    original_text = first_run.text
+                    # Очищаем run
+                    first_run.clear()
+                    # Добавляем разрыв страницы
+                    first_run.add_break(WD_BREAK.PAGE)
+                    # Возвращаем текст
+                    first_run.add_text(original_text)
+                else:
+                    # Если нет runs, создаем новый с разрывом
+                    run = paragraph.add_run()
+                    run.add_break(WD_BREAK.PAGE)
+                    
+                logger.debug(f"   ⚠️  Использован fallback метод для разрыва страницы")
+                
+            except Exception as fallback_error:
+                logger.error(f"   ❌ Fallback метод также не сработал: {fallback_error}")
+
+    def _should_add_page_break_for_h1(self, target_paragraph) -> bool:
+        """Определяет, нужен ли разрыв страницы для H1 заголовка"""
+        try:
+            # Используем счетчик H1 заголовков, который уже был отформатирован
+            # Если это первый H1 в процессе форматирования - не добавляем разрыв
+            # Если это второй и последующие - добавляем разрыв
+            
+            # Получаем документ
+            doc = target_paragraph._parent
+            while hasattr(doc, '_parent') and doc._parent is not None:
+                doc = doc._parent
+
+            # Считаем количество H1 заголовков ДО текущего
+            h1_count_before = 0
+            target_found = False
+            
+            for paragraph in doc.paragraphs:
+                if paragraph == target_paragraph:
+                    target_found = True
+                    break
+                    
+                # Проверяем, является ли параграф H1 заголовком
+                if self._is_h1_heading(paragraph):
+                    h1_count_before += 1
+            
+            # Если целевой параграф не найден, это ошибка
+            if not target_found:
+                logger.warning("   ⚠️  Целевой параграф не найден в документе")
+                return False
+            
+            # Простая логика: если это НЕ первый H1 в документе - добавляем разрыв
+            should_break = h1_count_before > 0
+            
+            logger.debug(f"   🔍 H1 заголовков до текущего: {h1_count_before}, разрыв страницы: {should_break}")
+            return should_break
+
+        except Exception as e:
+            logger.warning(f"Ошибка определения разрыва страницы для H1: {e}")
+            # В случае ошибки НЕ добавляем разрыв (безопасный вариант)
+            return False
+
+    def _is_h1_heading(self, paragraph) -> bool:
+        """Проверяет, является ли параграф H1 заголовком"""
+        try:
+            # Проверяем по стилю
+            if hasattr(paragraph, 'style') and paragraph.style:
+                style_name = paragraph.style.name
+                h1_styles = [
+                    "Heading 1", "Заголовок 1", "Title", "Название", "Header 1", "H1"
+                ]
+                
+                # Точное совпадение
+                if style_name in h1_styles:
+                    return True
+                
+                # Частичное совпадение
+                style_lower = style_name.lower()
+                for h1_style in h1_styles:
+                    if h1_style.lower() in style_lower:
+                        return True
+            
+            # Дополнительная проверка по тексту (fallback)
+            text = paragraph.text.strip().upper()
+            if text:
+                # Простые паттерны для H1
+                import re
+                h1_patterns = [
+                    r"^\d+\.\s*[А-ЯЁ\s]+$",           # "1. ВВЕДЕНИЕ"
+                    r"^ГЛАВА\s+\d+",                   # "ГЛАВА 1"
+                    r"^(ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|РЕФЕРАТ)$",  # специальные разделы
+                    r"^[IVX]+\.\s*[А-ЯЁ\s]+$"        # "I. ВВЕДЕНИЕ"
+                ]
+                
+                for pattern in h1_patterns:
+                    if re.match(pattern, text):
+                        return True
+            
+            return False
+            
+        except Exception:
+            return False
 
     def _not_first_paragraph(self, target_paragraph) -> bool:
-        """Проверяет, что параграф не первый"""
+        """Проверяет, что параграф не первый (устаревший метод)"""
         try:
             doc = target_paragraph._parent
             while hasattr(doc, '_parent') and doc._parent is not None:

@@ -29,6 +29,7 @@ class VKRFormatter:
             
         self.formatter = ParagraphFormatter(requirements)
         self.stats = StatisticsTracker()
+        self.h1_count = 0  # Счетчик H1 заголовков
 
     def format_document(self, input_path: str, output_path: str) -> bool:
         """Форматирует документ"""
@@ -166,7 +167,9 @@ class VKRFormatter:
                 f"⏭️  ПРОПУСК #{index}: {text[:60]}{'...' if len(text) > 60 else ''}")
 
         elif paragraph_type == "h1":
-            self.formatter.format_h1(paragraph)
+            # Передаем счетчик H1 в форматтер
+            self.formatter.format_h1(paragraph, self.h1_count)
+            self.h1_count += 1  # Увеличиваем счетчик после форматирования
             self.stats.increment('h1_formatted')
             logger.info(f"📝 H1 #{index}: {text[:40]}...")
 
