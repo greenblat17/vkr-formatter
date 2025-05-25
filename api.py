@@ -83,7 +83,7 @@ async def format_vkr(
     - Обрабатывает H1, H2, списки, базовое форматирование
     - Пропускает шаблонные страницы
     """
-
+    
     # Обновляем статистику
     stats["total_processed"] += 1
     stats["last_processed"] = datetime.now().isoformat()
