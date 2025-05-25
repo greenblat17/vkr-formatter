@@ -168,58 +168,9 @@ The project follows a clean modular architecture with separation of concerns:
 - **`StatisticsTracker`**: Tracks processing metrics and statistics
 - **`VKRFormatter`**: Main orchestrator that coordinates all components
 
-## 🔧 Development
-
-### Setting up development environment:
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the API server
-uvicorn api:app --reload --port 8000
-
-# Test the modular structure
-python -c "from vkr_formatter import format_vkr_document; print('✅ Import successful!')"
-```
-
-### Code Style
-
-- Follow PEP 8 guidelines
-- Use type hints
-- Write docstrings for all functions
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Pull Request Process
-
-1. Update the README.md with details of changes if needed
-2. Update the requirements.txt if you add new dependencies
-3. Ensure all tests pass
-4. The PR will be merged once you have the sign-off of at least one other developer
-
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [python-docx](https://python-docx.readthedocs.io/) for document manipulation
-- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-- Open an issue in the GitHub repository
-- Check the API documentation at `/docs`
-- Review the processing logs for detailed information
 
 ## 🔄 Version History
 
