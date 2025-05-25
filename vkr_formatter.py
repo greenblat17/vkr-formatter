@@ -13,13 +13,16 @@ from document_state import logger
 class VKRFormatter:
     """Основной класс для форматирования ВКР"""
 
-    def __init__(self, requirements: Dict[str, Any], use_style_based_classification: bool = True):
+    def __init__(self, requirements: Dict[str, Any], use_style_based_classification: bool = True, strict_style_mode: bool = False):
         self.requirements = requirements
         self.use_style_based = use_style_based_classification
         
         if use_style_based_classification:
-            self.classifier = StyleBasedClassifier(requirements)
-            logger.info("🎨 Используем классификацию на основе стилей документа")
+            self.classifier = StyleBasedClassifier(requirements, strict_style_mode=strict_style_mode)
+            if strict_style_mode:
+                logger.info("🔒 Используем СТРОГУЮ классификацию на основе стилей (без fallback)")
+            else:
+                logger.info("🎨 Используем классификацию на основе стилей документа (с fallback)")
         else:
             self.classifier = ParagraphClassifier(requirements)
             logger.info("📝 Используем классификацию на основе текстовых паттернов")
@@ -186,7 +189,7 @@ class VKRFormatter:
         return self.stats.get_statistics(self.classifier.get_state())
 
 
-def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_path: str, use_style_based: bool = True) -> Tuple[bool, Dict[str, Any]]:
+def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_path: str, use_style_based: bool = True, strict_style_mode: bool = False) -> Tuple[bool, Dict[str, Any]]:
     """
     Форматирует ВКР согласно требованиям
 
@@ -195,11 +198,12 @@ def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_pa
         requirements: словарь требований
         output_path: путь к результирующему файлу
         use_style_based: использовать классификацию на основе стилей (по умолчанию True)
+        strict_style_mode: строгий режим стилей - игнорировать паттерны для Normal стиля
 
     Returns:
         tuple: (успех, статистика)
     """
-    formatter = VKRFormatter(requirements, use_style_based_classification=use_style_based)
+    formatter = VKRFormatter(requirements, use_style_based_classification=use_style_based, strict_style_mode=strict_style_mode)
     success = formatter.format_document(input_path, output_path)
     stats = formatter.get_statistics()
 

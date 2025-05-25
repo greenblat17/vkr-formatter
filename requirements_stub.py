@@ -74,7 +74,7 @@ def get_default_vkr_requirements():
             "page_break_before": False,
             "space_before_pt": 12,
             "space_after_pt": 6,
-            "paragraph_indent_cm": 0,
+            "paragraph_indent_cm": 2,
             "detection_patterns": [
                 r"^\d+\.\d+\.?\s+[А-Яа-яёЁ]",     # "1.1. Подраздел"
                 r"^\d+\.\d+\s+[А-ЯЁ\s]+$"        # "1.1 ПОДРАЗДЕЛ"

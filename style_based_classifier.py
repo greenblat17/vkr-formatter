@@ -10,10 +10,11 @@ from document_state import DocumentState, logger
 class StyleBasedClassifier:
     """Классифицирует параграфы на основе стилей документа"""
 
-    def __init__(self, requirements: Dict[str, Any]):
+    def __init__(self, requirements: Dict[str, Any], strict_style_mode: bool = False):
         self.requirements = requirements
         self.detector = ContentDetector()
         self.state = DocumentState()
+        self.strict_style_mode = strict_style_mode  # Если True, игнорирует паттерны для Normal стиля
 
     def classify_paragraph_by_style(self, paragraph, text: str) -> str:
         """
@@ -90,7 +91,7 @@ class StyleBasedClassifier:
         style_name = self._get_paragraph_style_name(paragraph)
         logger.debug(f"   📝 Стиль параграфа: '{style_name}'")
         
-        # Классифицируем по стилю
+        # Классифицируем по стилю (приоритет стилям!)
         if self._is_h1_style(style_name):
             logger.debug(f"   ↳ Определен как H1 по стилю")
             return "h1"
@@ -100,10 +101,19 @@ class StyleBasedClassifier:
         elif self._is_list_style(style_name):
             logger.debug(f"   ↳ Определен как список по стилю")
             return "list"
+        elif style_name == "Normal":
+            if self.strict_style_mode:
+                # В строгом режиме стиль Normal всегда считается обычным текстом
+                logger.debug(f"   🔒 Строгий режим: стиль Normal = обычный текст")
+                return "regular"
+            else:
+                # Для стиля Normal используем fallback на текстовые паттерны
+                logger.debug(f"   🔄 Стиль Normal: проверяем по текстовым паттернам")
+                return self._classify_by_text_patterns(text_clean)
         else:
-            # Fallback: проверяем по текстовым паттернам
-            logger.debug(f"   🔄 Fallback: проверяем по текстовым паттернам")
-            return self._classify_by_text_patterns(text_clean)
+            # Для других стилей (не заголовочных) считаем обычным текстом
+            logger.debug(f"   ↳ Неизвестный стиль '{style_name}', считаем обычным текстом")
+            return "regular"
 
     def _get_paragraph_style_name(self, paragraph) -> str:
         """Получает название стиля параграфа"""
@@ -150,19 +160,27 @@ class StyleBasedClassifier:
             "Subtitle", 
             "Подзаголовок",
             "Header 2",
-            "H2"
+            "H2",
+            "Heading2",
+            "Заголовок2",
+            "Sub Heading",
+            "Подраздел",
+            "Section Heading"
         ]
         
         # Точное совпадение
         if style_name in h2_styles:
+            logger.debug(f"      ✅ Точное совпадение H2 стиля: {style_name}")
             return True
         
-        # Частичное совпадение
+        # Частичное совпадение (нечувствительно к регистру)
         style_lower = style_name.lower()
         for h2_style in h2_styles:
             if h2_style.lower() in style_lower:
+                logger.debug(f"      ✅ Частичное совпадение H2 стиля: {style_name} содержит {h2_style}")
                 return True
         
+        logger.debug(f"      ❌ Не является H2 стилем: {style_name}")
         return False
 
     def _is_list_style(self, style_name: str) -> bool:
