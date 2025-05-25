@@ -12,32 +12,50 @@ class ParagraphFormatter:
         self.requirements = requirements
 
     def format_h1(self, paragraph) -> None:
-        """Форматирует заголовок H1"""
+        """Форматирует заголовок H1 согласно требованиям ГОСТ"""
         try:
             config = self.requirements["h1_formatting"]
+            
+            logger.info(f"🔤 Форматирование H1: {paragraph.text[:50]}...")
 
-            # Разрыв страницы
-            if config["page_break_before"] and self._not_first_paragraph(paragraph):
+            # 1. Разрыв страницы перед заголовком (кроме первого)
+            if config.get("page_break_before", False) and self._not_first_paragraph(paragraph):
                 self._add_page_break_before(paragraph)
+                logger.debug("   ↳ Добавлен разрыв страницы")
 
-            # Форматирование
+            # 2. Применяем шрифт и размер
             self._apply_font_formatting(paragraph, config)
+            logger.debug(f"   ↳ Шрифт: {config['font_name']}, {config['font_size']}pt, жирный")
 
-            # Заглавные буквы
-            if config["text_transform"] == "uppercase":
+            # 3. Преобразуем в заглавные буквы
+            if config.get("text_transform") == "uppercase":
                 self._make_text_uppercase(paragraph, config)
+                logger.debug("   ↳ Текст преобразован в ЗАГЛАВНЫЕ БУКВЫ")
 
-            # Выравнивание и отступы
+            # 4. Выравнивание по центру
             paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
 
+            # 5. Настройки параграфа
             pf = paragraph.paragraph_format
+            
+            # Отступы до и после заголовка
             pf.space_before = Pt(config["space_before_pt"])
             pf.space_after = Pt(config["space_after_pt"])
-
-            logger.debug(f"H1 отформатирован: {paragraph.text[:30]}...")
+            
+            # Убираем отступ первой строки для заголовков
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            
+            # Междустрочный интервал для заголовка (обычно одинарный)
+            pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP.get(1.0)
+            
+            logger.debug(f"   ↳ Отступы: до={config['space_before_pt']}pt, после={config['space_after_pt']}pt")
+            logger.info(f"✅ H1 отформатирован: {paragraph.text[:40]}...")
 
         except Exception as e:
-            logger.error(f"Ошибка форматирования H1: {e}")
+            logger.error(f"❌ Ошибка форматирования H1: {e}")
             raise
 
     def format_h2(self, paragraph) -> None:
@@ -86,22 +104,39 @@ class ParagraphFormatter:
             raise
 
     def format_regular(self, paragraph) -> None:
-        """Форматирует обычный параграф"""
+        """Форматирует обычный параграф согласно базовым требованиям ГОСТ"""
         try:
             if not paragraph.text.strip():
                 return
 
             config = self.requirements["base_formatting"]
 
+            # Применяем шрифт и размер
             self._apply_font_formatting(paragraph, config)
+            
+            # Выравнивание по ширине
             paragraph.alignment = FormattingConstants.ALIGN_MAP[config["text_alignment"]]
 
+            # Настройки параграфа
             pf = paragraph.paragraph_format
+            
+            # Отступ первой строки (красная строка)
             pf.first_line_indent = Cm(config["paragraph_indent_cm"])
-
+            
+            # Междустрочный интервал
             line_spacing = config["line_spacing"]
             if line_spacing in FormattingConstants.LINE_SPACING_MAP:
                 pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+            
+            # Убираем дополнительные отступы между параграфами
+            pf.space_before = Pt(0)
+            pf.space_after = Pt(0)
+            
+            # Убираем левый отступ (только красная строка)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+
+            logger.debug(f"Обычный параграф отформатирован: {paragraph.text[:30]}...")
 
         except Exception as e:
             logger.error(f"Ошибка форматирования обычного параграфа: {e}")

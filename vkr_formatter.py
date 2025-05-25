@@ -1,9 +1,10 @@
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 from typing import Dict, Any, Tuple
 from pathlib import Path
 
 from paragraph_classifier import ParagraphClassifier
+from style_based_classifier import StyleBasedClassifier
 from paragraph_formatter import ParagraphFormatter
 from statistics_tracker import StatisticsTracker
 from document_state import logger
@@ -12,9 +13,17 @@ from document_state import logger
 class VKRFormatter:
     """Основной класс для форматирования ВКР"""
 
-    def __init__(self, requirements: Dict[str, Any]):
+    def __init__(self, requirements: Dict[str, Any], use_style_based_classification: bool = True):
         self.requirements = requirements
-        self.classifier = ParagraphClassifier(requirements)
+        self.use_style_based = use_style_based_classification
+        
+        if use_style_based_classification:
+            self.classifier = StyleBasedClassifier(requirements)
+            logger.info("🎨 Используем классификацию на основе стилей документа")
+        else:
+            self.classifier = ParagraphClassifier(requirements)
+            logger.info("📝 Используем классификацию на основе текстовых паттернов")
+            
         self.formatter = ParagraphFormatter(requirements)
         self.stats = StatisticsTracker()
 
@@ -71,19 +80,47 @@ class VKRFormatter:
     def _apply_global_settings(self, doc: Document) -> None:
         """Применяет глобальные настройки документа"""
         try:
-            margins = self.requirements["base_formatting"]["margins_cm"]
-
+            base_config = self.requirements["base_formatting"]
+            
+            # Применяем поля страницы
+            margins = base_config["margins_cm"]
             for section in doc.sections:
                 section.top_margin = Cm(margins["top"])
                 section.bottom_margin = Cm(margins["bottom"])
                 section.left_margin = Cm(margins["left"])
                 section.right_margin = Cm(margins["right"])
-
-            logger.info(f"Применены поля: {margins}")
+            
+            logger.info(f"✅ Применены поля: {margins}")
+            
+            # Настраиваем стили документа по умолчанию
+            self._configure_default_styles(doc, base_config)
+            
+            logger.info("✅ Глобальные настройки применены")
 
         except Exception as e:
             logger.error(f"Ошибка применения глобальных настроек: {e}")
             self.stats.increment('errors')
+    
+
+    
+    def _configure_default_styles(self, doc: Document, base_config: Dict[str, Any]) -> None:
+        """Настраивает стили документа по умолчанию (только базовые настройки)"""
+        try:
+            # Получаем стиль Normal (базовый стиль)
+            styles = doc.styles
+            normal_style = styles['Normal']
+            
+            # Настраиваем только базовый шрифт
+            font = normal_style.font
+            font.name = base_config["font_name"]
+            font.size = Pt(base_config["font_size"])
+            
+            logger.info("✅ Стиль Normal настроен (только шрифт)")
+            
+        except Exception as e:
+            logger.warning(f"Не удалось настроить стили по умолчанию: {e}")
+    
+
 
     def _process_all_paragraphs(self, doc: Document) -> None:
         """Обрабатывает все параграфы документа"""
@@ -94,7 +131,12 @@ class VKRFormatter:
 
             try:
                 text = paragraph.text.strip()
-                paragraph_type = self.classifier.classify_paragraph(text)
+                
+                # Выбираем метод классификации
+                if self.use_style_based:
+                    paragraph_type = self.classifier.classify_paragraph_by_style(paragraph, text)
+                else:
+                    paragraph_type = self.classifier.classify_paragraph(text)
 
                 # Логируем непустые параграфы
                 if text:
@@ -144,7 +186,7 @@ class VKRFormatter:
         return self.stats.get_statistics(self.classifier.get_state())
 
 
-def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_path: str) -> Tuple[bool, Dict[str, Any]]:
+def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_path: str, use_style_based: bool = True) -> Tuple[bool, Dict[str, Any]]:
     """
     Форматирует ВКР согласно требованиям
 
@@ -152,11 +194,12 @@ def format_vkr_document(input_path: str, requirements: Dict[str, Any], output_pa
         input_path: путь к исходному файлу ВКР
         requirements: словарь требований
         output_path: путь к результирующему файлу
+        use_style_based: использовать классификацию на основе стилей (по умолчанию True)
 
     Returns:
         tuple: (успех, статистика)
     """
-    formatter = VKRFormatter(requirements)
+    formatter = VKRFormatter(requirements, use_style_based_classification=use_style_based)
     success = formatter.format_document(input_path, output_path)
     stats = formatter.get_statistics()
 

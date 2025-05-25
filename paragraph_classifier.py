@@ -75,21 +75,31 @@ class ParagraphClassifier:
 
     def _classify_content_paragraph(self, text_clean: str) -> str:
         """Классифицирует параграфы основного содержания"""
+        logger.debug(f"🔍 Классифицируем содержание: '{text_clean[:50]}...'")
+        
         if self._is_h1_paragraph(text_clean):
+            logger.debug(f"   ↳ Определен как H1")
             return "h1"
         elif self._is_h2_paragraph(text_clean):
+            logger.debug(f"   ↳ Определен как H2")
             return "h2"
         elif self._is_list_paragraph(text_clean):
+            logger.debug(f"   ↳ Определен как список")
             return "list"
         else:
+            logger.debug(f"   ↳ Определен как обычный параграф")
             return "regular"
 
     def _is_h1_paragraph(self, text: str) -> bool:
         """Проверяет H1 заголовок"""
         patterns = self.requirements["h1_formatting"]["detection_patterns"]
+        text_upper = text.upper().strip()
+        
+        logger.debug(f"      🔎 Проверяем H1: '{text_upper}'")
 
-        for pattern in patterns:
-            if re.match(pattern, text.upper().strip()):
+        for i, pattern in enumerate(patterns):
+            if re.match(pattern, text_upper):
+                logger.debug(f"         ✅ Совпадение с паттерном {i+1}: {pattern}")
                 return True
 
         # Дополнительная проверка: короткий текст с заглавными буквами
@@ -99,8 +109,10 @@ class ParagraphClassifier:
                 upper_ratio = sum(
                     1 for c in alpha_chars if c.isupper()) / len(alpha_chars)
                 if upper_ratio > 0.7:
+                    logger.debug(f"         ✅ Совпадение по эвристике (заглавные буквы: {upper_ratio:.2f})")
                     return True
 
+        logger.debug(f"         ❌ Не является H1")
         return False
 
     def _is_h2_paragraph(self, text: str) -> bool:

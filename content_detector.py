@@ -10,6 +10,19 @@ class ContentDetector:
         """Определяет содержимое титульного листа"""
         text_upper = text.upper()
 
+        # ВАЖНО: Сначала проверяем, не является ли это H1 заголовком
+        # Если это H1, то НЕ считаем титульной страницей
+        h1_patterns = [
+            r"^\d+\.\s*[А-ЯЁ\s]+$",           # "1. ВВЕДЕНИЕ"
+            r"^ГЛАВА\s+\d+",                   # "ГЛАВА 1"
+            r"^(ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|РЕФЕРАТ)$", # специальные разделы
+            r"^[IVX]+\.\s*[А-ЯЁ\s]+$"        # "I. ВВЕДЕНИЕ"
+        ]
+        
+        for pattern in h1_patterns:
+            if re.match(pattern, text_upper.strip()):
+                return False  # Это H1 заголовок, не титульная страница
+
         # Проверка маркеров титульной страницы
         for marker in FormattingConstants.TITLE_PAGE_MARKERS:
             if marker in text_upper:
@@ -27,13 +40,16 @@ class ContentDetector:
                 return True
 
         # Короткие строки с высоким процентом заглавных букв
+        # НО исключаем потенциальные заголовки
         if len(text) < 200:
             alpha_chars = [c for c in text if c.isalpha()]
             if alpha_chars:
                 upper_ratio = sum(
                     1 for c in alpha_chars if c.isupper()) / len(alpha_chars)
                 if upper_ratio > 0.8 and len(text.split()) <= 5:
-                    return True
+                    # Дополнительная проверка: не начинается ли с номера главы
+                    if not re.match(r'^\d+\.', text.strip()):
+                        return True
 
         return False
 
