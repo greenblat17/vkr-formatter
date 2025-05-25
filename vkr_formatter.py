@@ -175,6 +175,16 @@ class VKRFormatter:
             self.stats.increment('h2_formatted')
             logger.info(f"📄 H2 #{index}: {text[:40]}...")
 
+        elif paragraph_type == "h3":
+            self.formatter.format_h3(paragraph)
+            self.stats.increment('h3_formatted')
+            logger.info(f"📋 H3 #{index}: {text[:40]}...")
+
+        elif paragraph_type == "h4":
+            self.formatter.format_h4(paragraph)
+            self.stats.increment('h4_formatted')
+            logger.info(f"📌 H4 #{index}: {text[:40]}...")
+
         elif paragraph_type == "list":
             self.formatter.format_list(paragraph)
             self.stats.increment('lists_formatted')

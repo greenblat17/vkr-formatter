@@ -11,6 +11,8 @@ class StatisticsTracker:
             'skipped_paragraphs': 0,
             'h1_formatted': 0,
             'h2_formatted': 0,
+            'h3_formatted': 0,
+            'h4_formatted': 0,
             'lists_formatted': 0,
             'regular_formatted': 0,
             'errors': 0

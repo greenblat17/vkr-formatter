@@ -81,7 +81,41 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 6. Специальные разделы
+        # 6. Заголовки H3 (подподразделы)
+        "h3_formatting": {
+            "font_name": "Times New Roman",
+            "font_size": 14,
+            "font_weight": "normal",
+            "text_transform": "none",
+            "alignment": "left",
+            "page_break_before": False,
+            "space_before_pt": 6,
+            "space_after_pt": 3,
+            "paragraph_indent_cm": 2.5,
+            "detection_patterns": [
+                r"^\d+\.\d+\.\d+\.?\s+[А-Яа-яёЁ]",  # "1.1.1. Подподраздел"
+                r"^\d+\.\d+\.\d+\s+[А-ЯЁ\s]+$"     # "1.1.1 ПОДПОДРАЗДЕЛ"
+            ]
+        },
+
+        # 7. Заголовки H4 (пункты)
+        "h4_formatting": {
+            "font_name": "Times New Roman",
+            "font_size": 14,
+            "font_weight": "normal",
+            "text_transform": "none",
+            "alignment": "left",
+            "page_break_before": False,
+            "space_before_pt": 3,
+            "space_after_pt": 3,
+            "paragraph_indent_cm": 2,
+            "detection_patterns": [
+                r"^\d+\.\d+\.\d+\.\d+\.?\s+[А-Яа-яёЁ]",  # "1.1.1.1. Пункт"
+                r"^\d+\.\d+\.\d+\.\d+\s+[А-ЯЁ\s]+$"     # "1.1.1.1 ПУНКТ"
+            ]
+        },
+
+        # 8. Специальные разделы
         "special_sections": {
             "abstract": {
                 "font_name": "Times New Roman",
@@ -117,7 +151,7 @@ def get_default_vkr_requirements():
             }
         },
 
-        # 7. Содержание
+        # 9. Содержание
         "table_of_contents": {
             "title": "СОДЕРЖАНИЕ",
             "font_name": "Times New Roman",
@@ -128,7 +162,7 @@ def get_default_vkr_requirements():
             "keywords": ["СОДЕРЖАНИЕ", "ОГЛАВЛЕНИЕ", "CONTENTS"]
         },
 
-        # 8. Список литературы
+        # 10. Список литературы
         "references": {
             "title": "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
             "font_name": "Times New Roman",
@@ -144,7 +178,7 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 9. Таблицы
+        # 11. Таблицы
         "tables": {
             "caption": {
                 "position": "above",
@@ -169,7 +203,7 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 10. Рисунки
+        # 12. Рисунки
         "figures": {
             "caption": {
                 "position": "below",
@@ -190,7 +224,7 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 11. Формулы
+        # 13. Формулы
         "formulas": {
             "alignment": "center",
             "numbering": {
@@ -213,7 +247,7 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 12. Ссылки на источники
+        # 14. Ссылки на источники
         "citations": {
             "format": "[{number}]",
             "multiple_format": "[{start}-{end}]",
@@ -225,7 +259,7 @@ def get_default_vkr_requirements():
             ]
         },
 
-        # 13. Нумерация страниц
+        # 15. Нумерация страниц
         "page_numbering": {
             "style": "arabic",
             "position": "bottom_center",

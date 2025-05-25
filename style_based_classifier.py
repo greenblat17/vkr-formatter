@@ -98,6 +98,12 @@ class StyleBasedClassifier:
         elif self._is_h2_style(style_name):
             logger.debug(f"   ↳ Определен как H2 по стилю")
             return "h2"
+        elif self._is_h3_style(style_name):
+            logger.debug(f"   ↳ Определен как H3 по стилю")
+            return "h3"
+        elif self._is_h4_style(style_name):
+            logger.debug(f"   ↳ Определен как H4 по стилю")
+            return "h4"
         elif self._is_list_style(style_name):
             logger.debug(f"   ↳ Определен как список по стилю")
             return "list"
@@ -183,6 +189,64 @@ class StyleBasedClassifier:
         logger.debug(f"      ❌ Не является H2 стилем: {style_name}")
         return False
 
+    def _is_h3_style(self, style_name: str) -> bool:
+        """Проверяет, является ли стиль заголовком 3 уровня"""
+        h3_styles = [
+            "Heading 3",
+            "Заголовок 3",
+            "Heading3",
+            "Заголовок3",
+            "Header 3",
+            "H3",
+            "Sub Sub Heading",
+            "Подподраздел",
+            "Subsection Heading"
+        ]
+        
+        # Точное совпадение
+        if style_name in h3_styles:
+            logger.debug(f"      ✅ Точное совпадение H3 стиля: {style_name}")
+            return True
+        
+        # Частичное совпадение (нечувствительно к регистру)
+        style_lower = style_name.lower()
+        for h3_style in h3_styles:
+            if h3_style.lower() in style_lower:
+                logger.debug(f"      ✅ Частичное совпадение H3 стиля: {style_name} содержит {h3_style}")
+                return True
+        
+        logger.debug(f"      ❌ Не является H3 стилем: {style_name}")
+        return False
+
+    def _is_h4_style(self, style_name: str) -> bool:
+        """Проверяет, является ли стиль заголовком 4 уровня"""
+        h4_styles = [
+            "Heading 4",
+            "Заголовок 4",
+            "Heading4",
+            "Заголовок4",
+            "Header 4",
+            "H4",
+            "Paragraph Heading",
+            "Пункт",
+            "Point Heading"
+        ]
+        
+        # Точное совпадение
+        if style_name in h4_styles:
+            logger.debug(f"      ✅ Точное совпадение H4 стиля: {style_name}")
+            return True
+        
+        # Частичное совпадение (нечувствительно к регистру)
+        style_lower = style_name.lower()
+        for h4_style in h4_styles:
+            if h4_style.lower() in style_lower:
+                logger.debug(f"      ✅ Частичное совпадение H4 стиля: {style_name} содержит {h4_style}")
+                return True
+        
+        logger.debug(f"      ❌ Не является H4 стилем: {style_name}")
+        return False
+
     def _is_list_style(self, style_name: str) -> bool:
         """Проверяет, является ли стиль списком"""
         list_styles = [
@@ -217,6 +281,12 @@ class StyleBasedClassifier:
         elif self._is_h2_by_pattern(text_clean):
             logger.debug(f"   ↳ Определен как H2 по паттерну")
             return "h2"
+        elif self._is_h3_by_pattern(text_clean):
+            logger.debug(f"   ↳ Определен как H3 по паттерну")
+            return "h3"
+        elif self._is_h4_by_pattern(text_clean):
+            logger.debug(f"   ↳ Определен как H4 по паттерну")
+            return "h4"
         elif self._is_list_by_pattern(text_clean):
             logger.debug(f"   ↳ Определен как список по паттерну")
             return "list"
@@ -248,6 +318,28 @@ class StyleBasedClassifier:
         """Проверяет H2 заголовок по паттернам (fallback)"""
         import re
         patterns = self.requirements["h2_formatting"]["detection_patterns"]
+
+        for pattern in patterns:
+            if re.match(pattern, text.strip()):
+                return True
+
+        return False
+
+    def _is_h3_by_pattern(self, text: str) -> bool:
+        """Проверяет H3 заголовок по паттернам (fallback)"""
+        import re
+        patterns = self.requirements["h3_formatting"]["detection_patterns"]
+
+        for pattern in patterns:
+            if re.match(pattern, text.strip()):
+                return True
+
+        return False
+
+    def _is_h4_by_pattern(self, text: str) -> bool:
+        """Проверяет H4 заголовок по паттернам (fallback)"""
+        import re
+        patterns = self.requirements["h4_formatting"]["detection_patterns"]
 
         for pattern in patterns:
             if re.match(pattern, text.strip()):

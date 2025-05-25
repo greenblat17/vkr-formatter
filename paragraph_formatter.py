@@ -77,6 +77,44 @@ class ParagraphFormatter:
             logger.error(f"Ошибка форматирования H2: {e}")
             raise
 
+    def format_h3(self, paragraph) -> None:
+        """Форматирует заголовок H3"""
+        try:
+            config = self.requirements["h3_formatting"]
+
+            self._apply_font_formatting(paragraph, config)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+
+            pf = paragraph.paragraph_format
+            pf.space_before = Pt(config["space_before_pt"])
+            pf.space_after = Pt(config["space_after_pt"])
+            pf.left_indent = Cm(config.get("paragraph_indent_cm", 0))
+
+            logger.debug(f"H3 отформатирован: {paragraph.text[:30]}...")
+
+        except Exception as e:
+            logger.error(f"Ошибка форматирования H3: {e}")
+            raise
+
+    def format_h4(self, paragraph) -> None:
+        """Форматирует заголовок H4"""
+        try:
+            config = self.requirements["h4_formatting"]
+
+            self._apply_font_formatting(paragraph, config)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+
+            pf = paragraph.paragraph_format
+            pf.space_before = Pt(config["space_before_pt"])
+            pf.space_after = Pt(config["space_after_pt"])
+            pf.left_indent = Cm(config.get("paragraph_indent_cm", 0))
+
+            logger.debug(f"H4 отформатирован: {paragraph.text[:30]}...")
+
+        except Exception as e:
+            logger.error(f"Ошибка форматирования H4: {e}")
+            raise
+
     def format_list(self, paragraph) -> None:
         """Форматирует элемент списка"""
         try:
