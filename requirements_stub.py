@@ -6,12 +6,12 @@ def get_default_vkr_requirements():
     Заглушка: возвращает стандартные требования ГОСТ для ВКР
     Вместо анализа через ИИ - просто возвращаем фиксированные требования
     """
-    
+
     return {
         # 1-2. Секции для пропуска
         "skip_sections": {
             "title_page_keywords": [
-                "ДИПЛОМНАЯ РАБОТА", 
+                "ДИПЛОМНАЯ РАБОТА",
                 "ВЫПУСКНАЯ КВАЛИФИКАЦИОННАЯ РАБОТА",
                 "МИНИСТЕРСТВО ОБРАЗОВАНИЯ"
             ],
@@ -30,7 +30,7 @@ def get_default_vkr_requirements():
                 "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ"
             ]
         },
-        
+
         # 3. Базовые требования для всего ВКР
         "base_formatting": {
             "font_name": "Times New Roman",
@@ -45,7 +45,7 @@ def get_default_vkr_requirements():
                 "right": 1.5
             }
         },
-        
+
         # 4. Заголовки H1 (главы)
         "h1_formatting": {
             "font_name": "Times New Roman",
@@ -59,14 +59,14 @@ def get_default_vkr_requirements():
             "detection_patterns": [
                 r"^\d+\.\s*[А-ЯЁ\s]+$",           # "1. ВВЕДЕНИЕ"
                 r"^ГЛАВА\s+\d+",                   # "ГЛАВА 1"
-                r"^(ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|РЕФЕРАТ)$", # специальные разделы
+                r"^(ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|РЕФЕРАТ)$",  # специальные разделы
                 r"^[IVX]+\.\s*[А-ЯЁ\s]+$"        # "I. ВВЕДЕНИЕ"
             ]
         },
-        
+
         # 5. Заголовки H2 (подразделы)
         "h2_formatting": {
-            "font_name": "Times New Roman", 
+            "font_name": "Times New Roman",
             "font_size": 14,
             "font_weight": "bold",
             "text_transform": "none",
@@ -80,7 +80,7 @@ def get_default_vkr_requirements():
                 r"^\d+\.\d+\s+[А-ЯЁ\s]+$"        # "1.1 ПОДРАЗДЕЛ"
             ]
         },
-        
+
         # 6. Специальные разделы
         "special_sections": {
             "abstract": {
@@ -116,7 +116,7 @@ def get_default_vkr_requirements():
                 "keywords": ["ЗАКЛЮЧЕНИЕ", "CONCLUSION"]
             }
         },
-        
+
         # 7. Содержание
         "table_of_contents": {
             "title": "СОДЕРЖАНИЕ",
@@ -127,7 +127,7 @@ def get_default_vkr_requirements():
             "dot_leader": True,
             "keywords": ["СОДЕРЖАНИЕ", "ОГЛАВЛЕНИЕ", "CONTENTS"]
         },
-        
+
         # 8. Список литературы
         "references": {
             "title": "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
@@ -143,7 +143,7 @@ def get_default_vkr_requirements():
                 "БИБЛИОГРАФИЧЕСКИЙ СПИСОК"
             ]
         },
-        
+
         # 9. Таблицы
         "tables": {
             "caption": {
@@ -168,7 +168,7 @@ def get_default_vkr_requirements():
                 r"Табл\.\s+\d+"
             ]
         },
-        
+
         # 10. Рисунки
         "figures": {
             "caption": {
@@ -189,7 +189,7 @@ def get_default_vkr_requirements():
                 r"Figure\s+\d+"
             ]
         },
-        
+
         # 11. Формулы
         "formulas": {
             "alignment": "center",
@@ -212,7 +212,7 @@ def get_default_vkr_requirements():
                 r"\(\d+\)"
             ]
         },
-        
+
         # 12. Ссылки на источники
         "citations": {
             "format": "[{number}]",
@@ -224,7 +224,7 @@ def get_default_vkr_requirements():
                 r"\[\d+,\s*с\.\s*\d+\]"
             ]
         },
-        
+
         # 13. Нумерация страниц
         "page_numbering": {
             "style": "arabic",
@@ -235,7 +235,7 @@ def get_default_vkr_requirements():
             "exclude_title_page": True,
             "margin_from_edge_cm": 2.0
         },
-        
+
         # Списки (из предыдущего обсуждения)
         "lists": {
             "bullet_lists": {
@@ -268,6 +268,5 @@ def analyze_requirements_stub(requirements_file_path: str):
     """
     logger.info(f"🔮 Анализируем файл требований: {requirements_file_path}")
     logger.info("📋 Возвращаем стандартные требования ГОСТ...")
-    
-    return get_default_vkr_requirements()
 
+    return get_default_vkr_requirements()

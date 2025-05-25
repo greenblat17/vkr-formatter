@@ -24,11 +24,11 @@ __author__ = "VKR Formatter Team"
 
 __all__ = [
     "FormattingConstants",
-    "DocumentState", 
+    "DocumentState",
     "ContentDetector",
     "ParagraphClassifier",
     "ParagraphFormatter",
     "StatisticsTracker",
     "VKRFormatter",
     "format_vkr_document"
-] 
+]

@@ -15,24 +15,24 @@ def setup_colored_logger(
 ) -> colorlog.ColoredFormatter:
     """
     Создает и настраивает цветной логгер
-    
+
     Args:
         name: имя логгера
         level: уровень логирования
         format_string: кастомный формат (опционально)
         info_color: цвет для INFO сообщений
-        
+
     Returns:
         настроенный логгер
     """
-    
+
     # Базовый формат если не указан кастомный
     if format_string is None:
         if len(name) <= 8:
             format_string = '%(log_color)s%(asctime)s - %(name)-8s - %(levelname)-8s%(reset)s %(message)s'
         else:
             format_string = '%(log_color)s%(asctime)s - %(name)-12s - %(levelname)-8s%(reset)s %(message)s'
-    
+
     # Создаем цветной форматтер
     color_formatter = colorlog.ColoredFormatter(
         format_string,
@@ -47,22 +47,22 @@ def setup_colored_logger(
         secondary_log_colors={},
         style='%'
     )
-    
+
     # Настраиваем handler
     handler = colorlog.StreamHandler()
     handler.setFormatter(color_formatter)
-    
+
     # Настраиваем логгер
     logger = colorlog.getLogger(name)
     logger.setLevel(level)
-    
+
     # Очищаем существующие handlers чтобы избежать дублирования
     logger.handlers.clear()
     logger.addHandler(handler)
-    
+
     # Предотвращаем передачу в родительские логгеры
     logger.propagate = False
-    
+
     return logger
 
 
