@@ -29,7 +29,7 @@ class VKRFormatter:
             
         self.formatter = ParagraphFormatter(requirements)
         self.stats = StatisticsTracker()
-        self.h1_count = 0  # Счетчик H1 заголовков
+        self.h1_count = 0  # Счетчик H1 заголовков (только для разрывов страниц)
 
     def format_document(self, input_path: str, output_path: str) -> bool:
         """Форматирует документ"""
@@ -56,6 +56,10 @@ class VKRFormatter:
             # Обрабатываем параграфы
             logger.info("🔄 Обрабатываем параграфы...")
             self._process_all_paragraphs(doc)
+            
+            # Обрабатываем таблицы
+            logger.info("📊 Обрабатываем таблицы...")
+            self._process_all_tables(doc)
 
             # Сохраняем результат
             logger.info(f"💾 Сохраняем документ в: {output_path}")
@@ -159,6 +163,44 @@ class VKRFormatter:
         logger.info(
             f"Обработка параграфов завершена. Статистика: {final_stats}")
 
+    def _process_all_tables(self, doc: Document) -> None:
+        """Обрабатывает все таблицы в документе"""
+        logger.info("Начинаем обработку таблиц...")
+        
+        table_count = 0
+        
+        try:
+            # Получаем все таблицы из документа
+            tables = doc.tables
+            
+            if not tables:
+                logger.info("📊 Таблицы в документе не найдены")
+                return
+            
+            logger.info(f"📊 Найдено таблиц: {len(tables)}")
+            
+            for i, table in enumerate(tables):
+                table_count += 1
+                
+                try:
+                    logger.info(f"📊 Обрабатываем таблицу #{i+1}")
+                    
+                    # Форматируем таблицу
+                    self.formatter.format_table(table)
+                    self.stats.increment('tables_formatted')
+                    
+                    logger.info(f"✅ Таблица #{i+1} отформатирована")
+                    
+                except Exception as e:
+                    logger.warning(f"❌ Ошибка обработки таблицы #{i+1}: {e}")
+                    self.stats.increment('errors')
+            
+            logger.info(f"📊 Обработка таблиц завершена. Обработано: {table_count}")
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при обработке таблиц: {e}")
+            self.stats.increment('errors')
+
     def _apply_paragraph_formatting(self, paragraph, paragraph_type: str, index: int, text: str) -> None:
         """Применяет форматирование к параграфу"""
         if paragraph_type == "skip":
@@ -167,9 +209,12 @@ class VKRFormatter:
                 f"⏭️  ПРОПУСК #{index}: {text[:60]}{'...' if len(text) > 60 else ''}")
 
         elif paragraph_type == "h1":
-            # Передаем счетчик H1 в форматтер
-            self.formatter.format_h1(paragraph, self.h1_count)
-            self.h1_count += 1  # Увеличиваем счетчик после форматирования
+            # Увеличиваем счетчик H1 (для разрывов страниц)
+            self.h1_count += 1
+            
+            # Передаем счетчик H1 в форматтер (для разрывов страниц)
+            self.formatter.format_h1(paragraph, self.h1_count - 1)
+            
             self.stats.increment('h1_formatted')
             logger.info(f"📝 H1 #{index}: {text[:40]}...")
 
@@ -224,10 +269,15 @@ class VKRFormatter:
             self.stats.increment('table_captions_formatted')
             logger.debug(f"📊 ПОДПИСЬ ТАБЛИЦЫ #{index}: {text[:40]}...")
 
+        elif paragraph_type == "figure_image":
+            self.formatter.format_figure_image(paragraph)
+            self.stats.increment('figure_images_formatted')
+            logger.info(f"🖼️ ИЗОБРАЖЕНИЕ РИСУНКА #{index}")
+
         elif paragraph_type == "figure_caption":
             self.formatter.format_figure_caption(paragraph)
             self.stats.increment('figure_captions_formatted')
-            logger.debug(f"🖼️ ПОДПИСЬ РИСУНКА #{index}: {text[:40]}...")
+            logger.info(f"🖼️ ПОДПИСЬ РИСУНКА #{index}: {text[:60]}...")
 
         elif paragraph_type == "formula":
             self.formatter.format_formula(paragraph)

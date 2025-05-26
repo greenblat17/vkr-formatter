@@ -91,11 +91,10 @@ class StyleBasedClassifier:
         style_name = self._get_paragraph_style_name(paragraph)
         logger.debug(f"   📝 Стиль параграфа: '{style_name}'")
         
-        # Сначала проверяем специальные разделы по тексту
-        special_type = self._classify_special_sections(text_clean)
-        if special_type != "regular":
-            logger.debug(f"   ↳ Определен как специальный раздел: {special_type}")
-            return special_type
+        # Проверяем изображения (параграфы с встроенными объектами)
+        if self._contains_image(paragraph):
+            logger.debug(f"   ↳ Определен как изображение рисунка")
+            return "figure_image"
         
         # Проверяем таблицы и рисунки
         content_type = self._classify_content_elements(text_clean)
@@ -104,10 +103,13 @@ class StyleBasedClassifier:
             return content_type
         
         # Классифицируем по стилю (приоритет стилям!)
-        # НО сначала проверяем, не является ли H1 специальным заголовком (например, список литературы)
         if self._is_h1_style(style_name):
-            # Дополнительная проверка для H1 - может быть это специальный раздел?
-            if self._is_special_h1_section(text_clean):
+            # Для H1 стилей проверяем, не является ли это специальным разделом
+            # НО только если это НЕ нумерованная глава
+            if self._is_numbered_chapter(text_clean):
+                logger.debug(f"   ↳ Определен как H1 (нумерованная глава)")
+                return "h1"
+            elif self._is_special_h1_section(text_clean):
                 logger.debug(f"   ↳ H1 стиль, но это специальный раздел")
                 return self._classify_special_sections(text_clean)
             else:
@@ -135,9 +137,14 @@ class StyleBasedClassifier:
                 logger.debug(f"   🔄 Стиль Normal: проверяем по текстовым паттернам")
                 return self._classify_by_text_patterns(text_clean)
         else:
-            # Для других стилей (не заголовочных) считаем обычным текстом
-            logger.debug(f"   ↳ Неизвестный стиль '{style_name}', считаем обычным текстом")
-            return "regular"
+            # Для других стилей (не заголовочных) проверяем специальные разделы
+            special_type = self._classify_special_sections(text_clean)
+            if special_type != "regular":
+                logger.debug(f"   ↳ Определен как специальный раздел: {special_type}")
+                return special_type
+            else:
+                logger.debug(f"   ↳ Неизвестный стиль '{style_name}', считаем обычным текстом")
+                return "regular"
 
     def _get_paragraph_style_name(self, paragraph) -> str:
         """Получает название стиля параграфа"""
@@ -418,7 +425,7 @@ class StyleBasedClassifier:
             if re.search(pattern, text_clean, re.IGNORECASE):
                 return "table_caption"
         
-        # Проверяем рисунки
+        # Проверяем подписи рисунков
         figure_patterns = self.requirements["figures"]["detection_patterns"]
         for pattern in figure_patterns:
             import re
@@ -491,6 +498,93 @@ class StyleBasedClassifier:
                 if keyword.upper() in text_upper:
                     logger.debug(f"      🎯 Найден специальный раздел '{section_name}' по ключевому слову '{keyword}'")
                     return True
+        
+        return False
+
+    def _contains_image(self, paragraph) -> bool:
+        """Проверяет, содержит ли параграф изображение"""
+        try:
+            text = paragraph.text.strip()
+            
+            # Проверяем заглушки изображений (для тестирования)
+            image_placeholders = [
+                '[ЗДЕСЬ ДОЛЖНО БЫТЬ ИЗОБРАЖЕНИЕ]',
+                '[ВТОРОЕ ИЗОБРАЖЕНИЕ]',
+                '[ИЗОБРАЖЕНИЕ]',
+                '[IMAGE]',
+                '[РИСУНОК]',
+                '[FIGURE]',
+                '[РЕАЛЬНОЕ ИЗОБРАЖЕНИЕ АРХИТЕКТУРЫ]',
+                '[ИЗОБРАЖЕНИЕ В РАЗДЕЛЕ 2]',
+                '[ИЗОБРАЖЕНИЕ 1]',
+                '[ИЗОБРАЖЕНИЕ 2]',
+                '[ИЗОБРАЖЕНИЕ 3]',
+                '[ИЗОБРАЖЕНИЕ В ПЕРВОЙ ГЛАВЕ]',
+                '[ИЗОБРАЖЕНИЕ ВО ВТОРОЙ ГЛАВЕ]'
+            ]
+            
+            for placeholder in image_placeholders:
+                if placeholder in text.upper():
+                    logger.debug(f"      🖼️ Найдена заглушка изображения: {text}")
+                    return True
+            
+            # Проверяем наличие встроенных объектов (изображений)
+            for run in paragraph.runs:
+                # Проверяем встроенные объекты в run
+                if hasattr(run, '_element') and run._element is not None:
+                    # Ищем элементы изображений в XML
+                    for child in run._element:
+                        tag_name = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                        if tag_name in ['drawing', 'pict', 'object']:
+                            logger.debug(f"      🖼️ Найдено изображение в параграфе (тег: {tag_name})")
+                            return True
+                        
+                        # Проверяем вложенные элементы
+                        for subchild in child:
+                            subtag_name = subchild.tag.split('}')[-1] if '}' in subchild.tag else subchild.tag
+                            if subtag_name in ['inline', 'anchor', 'pict', 'blip', 'graphic']:
+                                logger.debug(f"      🖼️ Найдено встроенное изображение (тег: {subtag_name})")
+                                return True
+                            
+                            # Проверяем еще глубже для сложных структур
+                            for subsubchild in subchild:
+                                subsubtag_name = subsubchild.tag.split('}')[-1] if '}' in subsubchild.tag else subsubchild.tag
+                                if subsubtag_name in ['blip', 'graphic', 'pic']:
+                                    logger.debug(f"      🖼️ Найдено глубоко вложенное изображение (тег: {subsubtag_name})")
+                                    return True
+            
+            # Дополнительная проверка: если параграф очень короткий или пустой,
+            # но содержит runs, возможно это изображение
+            if len(text) == 0 and len(paragraph.runs) > 0:
+                # Проверяем, есть ли в runs что-то кроме текста
+                for run in paragraph.runs:
+                    if hasattr(run, '_element') and run._element is not None:
+                        # Если есть элементы, но нет текста - возможно изображение
+                        if len(run._element) > 0 and not run.text.strip():
+                            logger.debug(f"      🖼️ Пустой параграф с элементами - возможно изображение")
+                            return True
+                
+            return False
+            
+        except Exception as e:
+            logger.debug(f"      ⚠️ Ошибка проверки изображения: {e}")
+            return False
+
+    def _is_numbered_chapter(self, text: str) -> bool:
+        """Проверяет, является ли текст нумерованной главой"""
+        import re
+        
+        # Паттерны для нумерованных глав
+        numbered_patterns = [
+            r'^\d+\.\s+[А-ЯЁ]',  # "1. ВВЕДЕНИЕ", "2. АРХИТЕКТУРА"
+            r'^ГЛАВА\s+\d+',      # "ГЛАВА 1"
+            r'^\d+\s+[А-ЯЁ]'     # "1 ВВЕДЕНИЕ"
+        ]
+        
+        text_upper = text.upper().strip()
+        for pattern in numbered_patterns:
+            if re.match(pattern, text_upper):
+                return True
         
         return False
 

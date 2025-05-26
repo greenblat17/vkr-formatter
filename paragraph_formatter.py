@@ -534,55 +534,216 @@ class ParagraphFormatter:
             raise
 
     def format_table_caption(self, paragraph) -> None:
-        """Форматирует подпись таблицы"""
+        """Форматирует подпись таблицы согласно ГОСТ"""
         try:
             config = self.requirements["tables"]["caption"]
             
-            logger.debug(f"📊 Форматирование подписи таблицы: {paragraph.text[:40]}...")
+            text = paragraph.text.strip()
+            logger.info(f"📊 Форматирование подписи таблицы: {text}")
             
-            # Применяем форматирование
+            # Применяем форматирование шрифта
             self._apply_font_formatting(paragraph, config)
-            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Шрифт: {config['font_name']} {config['font_size']}pt")
             
+            # Выравнивание по левому краю (согласно ГОСТ)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
+            
+            # Настройки параграфа
             pf = paragraph.paragraph_format
-            spacing_config = self.requirements["tables"]["spacing"]
+            
+            # Отступы до и после подписи
+            spacing_config = config["spacing"]
             pf.space_before = Pt(spacing_config["before_pt"])
             pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
             
             # Убираем отступ первой строки для подписей
             pf.first_line_indent = Cm(0)
             pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
             
-            logger.debug(f"✅ Подпись таблицы отформатирована")
+            # Междустрочный интервал
+            line_spacing = config.get("line_spacing", 1.0)
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+                logger.debug(f"   ↳ Междустрочный интервал: {line_spacing}")
+            
+            logger.info(f"✅ Подпись таблицы отформатирована: {paragraph.text[:50]}...")
 
         except Exception as e:
             logger.error(f"❌ Ошибка форматирования подписи таблицы: {e}")
             raise
 
+    def format_table_content(self, paragraph) -> None:
+        """Форматирует содержимое таблицы согласно ГОСТ"""
+        try:
+            config = self.requirements["tables"]["content"]
+            
+            logger.debug(f"📊 Форматирование содержимого таблицы...")
+            
+            # Применяем форматирование шрифта
+            self._apply_font_formatting(paragraph, config)
+            logger.debug(f"   ↳ Шрифт: {config['font_name']} {config['font_size']}pt")
+            
+            # Выравнивание по центру для содержимого таблиц
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # Междустрочный интервал
+            line_spacing = config.get("line_spacing", 1.0)
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+                logger.debug(f"   ↳ Междустрочный интервал: {line_spacing}")
+            
+            # Убираем отступы для содержимого таблиц
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            pf.space_before = Pt(0)
+            pf.space_after = Pt(0)
+            
+            logger.debug(f"✅ Содержимое таблицы отформатировано")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования содержимого таблицы: {e}")
+            raise
+
+    def format_table(self, table_element) -> None:
+        """Форматирует саму таблицу согласно ГОСТ"""
+        try:
+            config = self.requirements["tables"]["table"]
+            
+            logger.info(f"📊 Форматирование таблицы...")
+            
+            # Выравнивание таблицы по центру
+            if hasattr(table_element, 'alignment'):
+                from docx.enum.table import WD_TABLE_ALIGNMENT
+                if config["alignment"] == "center":
+                    table_element.alignment = WD_TABLE_ALIGNMENT.CENTER
+                    logger.debug(f"   ↳ Выравнивание таблицы: по центру")
+                elif config["alignment"] == "left":
+                    table_element.alignment = WD_TABLE_ALIGNMENT.LEFT
+                    logger.debug(f"   ↳ Выравнивание таблицы: по левому краю")
+            
+            # Настройка ширины таблицы
+            if config.get("width_auto", True):
+                # Автоматическая ширина
+                table_element.autofit = True
+                logger.debug(f"   ↳ Автоматическая ширина таблицы")
+            
+            # Форматирование ячеек таблицы
+            content_config = self.requirements["tables"]["content"]
+            header_config = self.requirements["tables"]["header"]
+            
+            for i, row in enumerate(table_element.rows):
+                is_header = (i == 0)  # Первая строка считается заголовком
+                
+                for cell in row.cells:
+                    # Форматируем параграфы в ячейках
+                    for paragraph in cell.paragraphs:
+                        if paragraph.text.strip():  # Только непустые параграфы
+                            if is_header:
+                                # Форматирование заголовка
+                                self._apply_font_formatting(paragraph, header_config)
+                                paragraph.alignment = FormattingConstants.ALIGN_MAP[header_config["alignment"]]
+                            else:
+                                # Форматирование обычного содержимого
+                                self._apply_font_formatting(paragraph, content_config)
+                                paragraph.alignment = FormattingConstants.ALIGN_MAP[content_config["alignment"]]
+                            
+                            # Убираем отступы в ячейках
+                            pf = paragraph.paragraph_format
+                            pf.first_line_indent = Cm(0)
+                            pf.left_indent = Cm(0)
+                            pf.right_indent = Cm(0)
+                            pf.space_before = Pt(0)
+                            pf.space_after = Pt(0)
+                            
+                            # Междустрочный интервал
+                            line_spacing = content_config.get("line_spacing", 1.0)
+                            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+            
+            logger.info(f"✅ Таблица отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования таблицы: {e}")
+            raise
+
     def format_figure_caption(self, paragraph) -> None:
-        """Форматирует подпись рисунка"""
+        """Форматирует подпись рисунка согласно ГОСТ (без коррекции нумерации)"""
         try:
             config = self.requirements["figures"]["caption"]
             
-            logger.debug(f"🖼️ Форматирование подписи рисунка: {paragraph.text[:40]}...")
+            text = paragraph.text.strip()
+            logger.info(f"🖼️ Форматирование подписи рисунка: {text}")
             
-            # Применяем форматирование
+            # Применяем форматирование к существующему тексту (БЕЗ коррекции нумерации)
             self._apply_font_formatting(paragraph, config)
-            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
             
+            # Выравнивание по центру (согласно ГОСТ)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
+            
+            # Настройки параграфа
             pf = paragraph.paragraph_format
-            spacing_config = self.requirements["figures"]["spacing"]
+            
+            # Отступы до и после подписи
+            spacing_config = config["spacing"]
             pf.space_before = Pt(spacing_config["before_pt"])
             pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
             
             # Убираем отступ первой строки для подписей
             pf.first_line_indent = Cm(0)
             pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
             
-            logger.debug(f"✅ Подпись рисунка отформатирована")
+            # Междустрочный интервал
+            line_spacing = config.get("line_spacing", 1.0)
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+                logger.debug(f"   ↳ Междустрочный интервал: {line_spacing}")
+            
+            logger.info(f"✅ Подпись рисунка отформатирована: {paragraph.text[:50]}...")
 
         except Exception as e:
             logger.error(f"❌ Ошибка форматирования подписи рисунка: {e}")
+            raise
+
+    def format_figure_image(self, paragraph) -> None:
+        """Форматирует изображение рисунка согласно ГОСТ"""
+        try:
+            config = self.requirements["figures"]["image"]
+            
+            logger.info(f"🖼️ Форматирование изображения рисунка...")
+            
+            # Выравнивание по центру (согласно ГОСТ)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание изображения: {config['alignment']}")
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # Отступы до и после изображения
+            spacing_config = config["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы изображения: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
+            
+            # Убираем отступы для изображений
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            
+            logger.info(f"✅ Изображение рисунка отформатировано")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования изображения рисунка: {e}")
             raise
 
     def format_formula(self, paragraph) -> None:

@@ -24,6 +24,9 @@ class StatisticsTracker:
             'special_introduction_formatted': 0,
             'special_conclusion_formatted': 0,
             'table_captions_formatted': 0,
+            'table_content_formatted': 0,
+            'tables_formatted': 0,
+            'figure_images_formatted': 0,
             'figure_captions_formatted': 0,
             'formulas_formatted': 0,
             'errors': 0

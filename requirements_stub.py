@@ -197,37 +197,75 @@ def get_default_vkr_requirements():
                 "alignment": "left",
                 "font_name": "Times New Roman",
                 "font_size": 14,
-                "format": "Таблица {chapter}.{number} - {title}"
+                "font_weight": "normal",
+                "line_spacing": 1.0,
+                "format": "Таблица {chapter}.{number} - {title}",
+                "spacing": {
+                    "before_pt": 12,
+                    "after_pt": 6
+                }
+            },
+            "table": {
+                "alignment": "center",
+                "width_auto": True,
+                "spacing": {
+                    "before_pt": 0,  # Минимальный отступ от подписи
+                    "after_pt": 12   # Отступ после таблицы
+                },
+                "margins": {
+                    "left_indent_cm": 0,
+                    "right_indent_cm": 0
+                }
             },
             "content": {
                 "font_name": "Times New Roman",
                 "font_size": 12,
                 "alignment": "center",
-                "line_spacing": 1.0
+                "line_spacing": 1.0,
+                "cell_padding": 3,
+                "border_style": "single"
+            },
+            "header": {
+                "font_name": "Times New Roman",
+                "font_size": 12,
+                "font_weight": "bold",
+                "alignment": "center",
+                "background_color": None
             },
             "spacing": {
                 "before_pt": 12,
-                "after_pt": 6
+                "after_pt": 6,
+                "table_before_pt": 0,   # Синхронизировано с caption.after_pt
+                "table_after_pt": 12
             },
             "detection_patterns": [
                 r"Таблица\s+\d+",
-                r"Табл\.\s+\d+"
+                r"Табл\.\s+\d+",
+                r"Table\s+\d+"
             ]
         },
 
         # 12. Рисунки
         "figures": {
+            "image": {
+                "alignment": "center",
+                "spacing": {
+                    "before_pt": 12,
+                    "after_pt": 6
+                }
+            },
             "caption": {
                 "position": "below",
                 "alignment": "center",
                 "font_name": "Times New Roman",
                 "font_size": 14,
-                "format": "Рисунок {chapter}.{number} - {title}"
-            },
-            "alignment": "center",
-            "spacing": {
-                "before_pt": 6,
-                "after_pt": 12
+                "font_weight": "normal",
+                "line_spacing": 1.0,
+                "format": "Рисунок {chapter}.{number} - {title}",
+                "spacing": {
+                    "before_pt": 6,
+                    "after_pt": 12
+                }
             },
             "detection_patterns": [
                 r"Рисунок\s+\d+",
