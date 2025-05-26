@@ -148,6 +148,34 @@ def get_default_vkr_requirements():
                 "line_spacing": 1.5,
                 "paragraph_indent_cm": 1.25,
                 "keywords": ["ЗАКЛЮЧЕНИЕ", "CONCLUSION"]
+            },
+            "references": {
+                "title": {
+                    "font_name": "Times New Roman",
+                    "font_size": 16,
+                    "font_weight": "bold",
+                    "text_transform": "uppercase",
+                    "alignment": "center",
+                    "page_break_before": True,
+                    "space_before_pt": 0,
+                    "space_after_pt": 18
+                },
+                "content": {
+                    "font_name": "Times New Roman",
+                    "font_size": 14,
+                    "alignment": "justify",
+                    "line_spacing": 1.5,
+                    "paragraph_indent_cm": 1.5,
+                    "space_before_pt": 0,
+                    "space_after_pt": 0
+                },
+                "keywords": [
+                    "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+                    "СПИСОК ЛИТЕРАТУРЫ",
+                    "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
+                    "REFERENCES",
+                    "BIBLIOGRAPHY"
+                ]
             }
         },
 
@@ -160,22 +188,6 @@ def get_default_vkr_requirements():
             "line_spacing": 1.0,
             "dot_leader": True,
             "keywords": ["СОДЕРЖАНИЕ", "ОГЛАВЛЕНИЕ", "CONTENTS"]
-        },
-
-        # 10. Список литературы
-        "references": {
-            "title": "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-            "font_name": "Times New Roman",
-            "font_size": 14,
-            "alignment": "justify",
-            "line_spacing": 1.0,
-            "paragraph_indent_cm": 0,
-            "hanging_indent_cm": 1.0,
-            "keywords": [
-                "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-                "СПИСОК ЛИТЕРАТУРЫ",
-                "БИБЛИОГРАФИЧЕСКИЙ СПИСОК"
-            ]
         },
 
         # 11. Таблицы

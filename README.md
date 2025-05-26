@@ -149,7 +149,7 @@ vrk-formatter/
 ├── paragraph_classifier.py    # Paragraph classification
 ├── paragraph_formatter.py     # Paragraph formatting implementation
 ├── statistics_tracker.py      # Processing statistics tracking
-├── vkr_requirements_stub.py   # Default GOST requirements
+├── requirements_stub.py   # Default GOST requirements
 ├── logger_config.py           # Logging configuration
 ├── __init__.py                # Package initialization
 ├── requirements.txt           # Project dependencies

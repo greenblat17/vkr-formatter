@@ -10,6 +10,19 @@ class ContentDetector:
         """Определяет содержимое титульного листа"""
         text_upper = text.upper()
 
+        # ВАЖНО: Исключаем список литературы из титульной страницы
+        references_keywords = [
+            "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+            "СПИСОК ЛИТЕРАТУРЫ", 
+            "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
+            "REFERENCES",
+            "BIBLIOGRAPHY"
+        ]
+        
+        for keyword in references_keywords:
+            if keyword in text_upper:
+                return False  # Это список литературы, не титульная страница
+
         # ВАЖНО: Сначала проверяем, не является ли это H1 заголовком
         # Если это H1, то НЕ считаем титульной страницей
         h1_patterns = [
@@ -107,6 +120,19 @@ class ContentDetector:
     def is_service_content(text: str) -> bool:
         """Определяет служебные разделы"""
         text_upper = text.upper()
+
+        # ВАЖНО: Исключаем список литературы из служебных разделов
+        references_keywords = [
+            "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+            "СПИСОК ЛИТЕРАТУРЫ", 
+            "БИБЛИОГРАФИЧЕСКИЙ СПИСОК",
+            "REFERENCES",
+            "BIBLIOGRAPHY"
+        ]
+        
+        for keyword in references_keywords:
+            if keyword in text_upper:
+                return False  # Это список литературы, не служебный раздел
 
         for marker in FormattingConstants.SERVICE_MARKERS:
             if marker in text_upper:

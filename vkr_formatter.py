@@ -193,9 +193,53 @@ class VKRFormatter:
             self.stats.increment('lists_formatted')
             logger.debug(f"📋 СПИСОК #{index}: {text[:40]}...")
 
+        elif paragraph_type == "references_header":
+            self.formatter.format_references_header(paragraph)
+            self.stats.increment('references_headers_formatted')
+            logger.info(f"📚 ЗАГОЛОВОК СПИСКА ЛИТЕРАТУРЫ #{index}: {text[:40]}...")
+
+        elif paragraph_type == "bibliography_entry":
+            self.formatter.format_bibliography_entry(paragraph)
+            self.stats.increment('bibliography_entries_formatted')
+            logger.info(f"📖 БИБЛИОГРАФИЧЕСКАЯ ЗАПИСЬ #{index}: {text[:60]}...")
+
+        elif paragraph_type == "bibliography_continuation":
+            self.formatter.format_bibliography_continuation(paragraph)
+            self.stats.increment('bibliography_continuations_formatted')
+            logger.info(f"📄 ПРОДОЛЖЕНИЕ ЗАПИСИ #{index}: {text[:60]}...")
+
+        elif paragraph_type == "references_text":
+            self.formatter.format_references_text(paragraph)
+            self.stats.increment('references_text_formatted')
+            logger.debug(f"📝 ТЕКСТ В СПИСКЕ ЛИТЕРАТУРЫ #{index}: {text[:40]}...")
+
+        elif paragraph_type.startswith("special_"):
+            section_name = paragraph_type.replace("special_", "")
+            self.formatter.format_special_section(paragraph, section_name)
+            self.stats.increment(f'special_{section_name}_formatted')
+            logger.info(f"⭐ СПЕЦИАЛЬНЫЙ РАЗДЕЛ ({section_name.upper()}) #{index}: {text[:40]}...")
+
+        elif paragraph_type == "table_caption":
+            self.formatter.format_table_caption(paragraph)
+            self.stats.increment('table_captions_formatted')
+            logger.debug(f"📊 ПОДПИСЬ ТАБЛИЦЫ #{index}: {text[:40]}...")
+
+        elif paragraph_type == "figure_caption":
+            self.formatter.format_figure_caption(paragraph)
+            self.stats.increment('figure_captions_formatted')
+            logger.debug(f"🖼️ ПОДПИСЬ РИСУНКА #{index}: {text[:40]}...")
+
+        elif paragraph_type == "formula":
+            self.formatter.format_formula(paragraph)
+            self.stats.increment('formulas_formatted')
+            logger.debug(f"🔢 ФОРМУЛА #{index}: {text[:40]}...")
+
         else:  # regular
             self.formatter.format_regular(paragraph)
             self.stats.increment('regular_formatted')
+            # Дополнительное логирование для отладки
+            if self.classifier.get_state().in_references_section:
+                logger.warning(f"⚠️  ВНИМАНИЕ: Строка в списке литературы классифицирована как 'regular': {text[:60]}...")
 
     def get_statistics(self) -> Dict[str, Any]:
         """Возвращает статистику обработки"""

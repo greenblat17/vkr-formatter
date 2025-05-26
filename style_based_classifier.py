@@ -91,10 +91,28 @@ class StyleBasedClassifier:
         style_name = self._get_paragraph_style_name(paragraph)
         logger.debug(f"   📝 Стиль параграфа: '{style_name}'")
         
+        # Сначала проверяем специальные разделы по тексту
+        special_type = self._classify_special_sections(text_clean)
+        if special_type != "regular":
+            logger.debug(f"   ↳ Определен как специальный раздел: {special_type}")
+            return special_type
+        
+        # Проверяем таблицы и рисунки
+        content_type = self._classify_content_elements(text_clean)
+        if content_type != "regular":
+            logger.debug(f"   ↳ Определен как элемент контента: {content_type}")
+            return content_type
+        
         # Классифицируем по стилю (приоритет стилям!)
+        # НО сначала проверяем, не является ли H1 специальным заголовком (например, список литературы)
         if self._is_h1_style(style_name):
-            logger.debug(f"   ↳ Определен как H1 по стилю")
-            return "h1"
+            # Дополнительная проверка для H1 - может быть это специальный раздел?
+            if self._is_special_h1_section(text_clean):
+                logger.debug(f"   ↳ H1 стиль, но это специальный раздел")
+                return self._classify_special_sections(text_clean)
+            else:
+                logger.debug(f"   ↳ Определен как H1 по стилю")
+                return "h1"
         elif self._is_h2_style(style_name):
             logger.debug(f"   ↳ Определен как H2 по стилю")
             return "h2"
@@ -356,6 +374,124 @@ class StyleBasedClassifier:
             if re.match(pattern, text):
                 return True
 
+        return False
+
+    def _classify_special_sections(self, text_clean: str) -> str:
+        """Классифицирует специальные разделы"""
+        text_upper = text_clean.upper()
+        
+        # Проверяем заголовок списка литературы
+        references_keywords = self.requirements["special_sections"]["references"]["keywords"]
+        for keyword in references_keywords:
+            if keyword.upper() in text_upper:
+                logger.debug(f"   📚 Обнаружен заголовок списка литературы: {keyword}")
+                self.state.start_references_section()
+                return "references_header"
+        
+        # Если мы в разделе списка литературы, различаем начало записи и продолжение
+        if self.state.in_references_section:
+            if text_clean.strip():  # Любая непустая строка в списке литературы
+                if self._is_bibliography_entry_start(text_clean):
+                    return "bibliography_entry"
+                else:
+                    # Проверяем, может ли это быть началом записи без номера
+                    if self._looks_like_bibliography_start(text_clean):
+                        return "bibliography_entry"
+                    else:
+                        return "bibliography_continuation"
+        
+        # Проверяем специальные разделы
+        special_sections = self.requirements["special_sections"]
+        for section_name, section_config in special_sections.items():
+            for keyword in section_config["keywords"]:
+                if keyword.upper() in text_upper:
+                    return f"special_{section_name}"
+        
+        return "regular"
+
+    def _classify_content_elements(self, text_clean: str) -> str:
+        """Классифицирует элементы контента (таблицы, рисунки, формулы)"""
+        # Проверяем таблицы
+        table_patterns = self.requirements["tables"]["detection_patterns"]
+        for pattern in table_patterns:
+            import re
+            if re.search(pattern, text_clean, re.IGNORECASE):
+                return "table_caption"
+        
+        # Проверяем рисунки
+        figure_patterns = self.requirements["figures"]["detection_patterns"]
+        for pattern in figure_patterns:
+            import re
+            if re.search(pattern, text_clean, re.IGNORECASE):
+                return "figure_caption"
+        
+        # Проверяем формулы
+        formula_patterns = self.requirements["formulas"]["detection_patterns"]
+        for pattern in formula_patterns:
+            import re
+            if re.search(pattern, text_clean):
+                return "formula"
+        
+        return "regular"
+
+    def _is_bibliography_entry_start(self, text: str) -> bool:
+        """Определяет, является ли текст НАЧАЛОМ библиографической записи (с номером)"""
+        import re
+        
+        # Проверяем начало с номера - это главный признак начала новой записи
+        # Паттерн 1: номер с пробелом и текстом ("1. Автор...")
+        if re.match(r'^\s*\d+\.\s+', text):
+            return True
+        
+        # Паттерн 2: только номер ("1.", "2.", "3.")
+        if re.match(r'^\s*\d+\.\s*$', text):
+            return True
+        
+        return False
+
+    def _looks_like_bibliography_start(self, text: str) -> bool:
+        """Определяет, похож ли текст на начало библиографической записи (без номера)"""
+        import re
+        
+        # Паттерны для начала библиографических записей
+        start_patterns = [
+            r'^[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.',  # "Иванов И."
+            r'^[A-Z][a-z]+\s+[A-Z]\.',       # "Smith J."
+            r'^[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]\.',  # "Иванов И.И."
+            r'^[A-Z][a-z]+\s+[A-Z]\.\s*[A-Z]\.',       # "Smith J.A."
+            r'^[А-ЯЁ][а-яё\s]+\s*[:/]',     # "Название книги:"
+            r'^[A-Z][a-zA-Z\s]+\s*[:/]',     # "Book Title:"
+            r'^Документация\s+',             # "Документация Docker"
+            r'^Официальный\s+сайт',          # "Официальный сайт"
+            r'^Сайт\s+',                     # "Сайт вакансий"
+        ]
+        
+        for pattern in start_patterns:
+            if re.match(pattern, text):
+                return True
+        
+        # Если строка начинается с заглавной буквы и содержит точку (возможно автор)
+        if re.match(r'^[А-ЯЁA-Z]', text) and '.' in text[:50]:
+            return True
+        
+        return False
+
+    def _is_bibliography_entry(self, text: str) -> bool:
+        """Определяет, является ли текст библиографической записью (устаревший метод, оставлен для совместимости)"""
+        return self._is_bibliography_entry_start(text)
+
+    def _is_special_h1_section(self, text_clean: str) -> bool:
+        """Проверяет, является ли H1 заголовок специальным разделом"""
+        text_upper = text_clean.upper()
+        
+        # Проверяем все специальные разделы
+        special_sections = self.requirements["special_sections"]
+        for section_name, section_config in special_sections.items():
+            for keyword in section_config["keywords"]:
+                if keyword.upper() in text_upper:
+                    logger.debug(f"      🎯 Найден специальный раздел '{section_name}' по ключевому слову '{keyword}'")
+                    return True
+        
         return False
 
     def get_state(self) -> DocumentState:

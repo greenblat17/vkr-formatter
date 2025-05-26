@@ -346,3 +346,266 @@ class ParagraphFormatter:
 
         except Exception:
             return True
+
+    def format_references_header(self, paragraph) -> None:
+        """Форматирует заголовок списка использованных источников"""
+        try:
+            # Используем форматирование H1 для заголовка списка литературы
+            h1_config = self.requirements["h1_formatting"]
+            
+            logger.info(f"📚 Форматирование заголовка списка литературы: {paragraph.text[:50]}...")
+
+            # Применяем шрифт и размер
+            self._apply_font_formatting(paragraph, h1_config)
+            
+            # Преобразуем в заглавные буквы
+            if h1_config.get("text_transform") == "uppercase":
+                self._make_text_uppercase(paragraph, h1_config)
+            
+            # Выравнивание по центру
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[h1_config["alignment"]]
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            pf.space_before = Pt(h1_config["space_before_pt"])
+            pf.space_after = Pt(h1_config["space_after_pt"])
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP.get(1.0)
+            
+            # Добавляем разрыв страницы перед списком литературы
+            if h1_config.get("page_break_before", False):
+                self._add_page_break_before(paragraph)
+                logger.debug("   ↳ Добавлен разрыв страницы перед списком литературы")
+            
+            logger.info(f"✅ Заголовок списка литературы отформатирован")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования заголовка списка литературы: {e}")
+            raise
+
+    def format_bibliography_entry(self, paragraph) -> None:
+        """Форматирует библиографическую запись"""
+        try:
+            config = self.requirements["special_sections"]["references"]["content"]
+            
+            logger.debug(f"📖 Форматирование библиографической записи: {paragraph.text[:60]}...")
+
+            # Применяем шрифт
+            self._apply_font_formatting(paragraph, config)
+            
+            # Выравнивание по ширине
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # Обычный отступ первой строки (красная строка) для библиографических записей
+            pf.first_line_indent = Cm(config["paragraph_indent_cm"])
+            pf.left_indent = Cm(0)
+            logger.debug(f"   ↳ Красная строка: first_line_indent={config['paragraph_indent_cm']}см")
+            
+            # Междустрочный интервал
+            line_spacing = config["line_spacing"]
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+            
+            # Минимальные отступы между записями (согласно ГОСТ)
+            pf.space_before = Pt(config.get("space_before_pt", 0))
+            pf.space_after = Pt(config.get("space_after_pt", 0))
+            
+            logger.debug(f"✅ Библиографическая запись отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования библиографической записи: {e}")
+            raise
+
+    def format_bibliography_continuation(self, paragraph) -> None:
+        """Форматирует продолжение библиографической записи (без красной строки)"""
+        try:
+            config = self.requirements["special_sections"]["references"]["content"]
+            
+            logger.debug(f"📖 Форматирование продолжения библиографической записи: {paragraph.text[:60]}...")
+
+            # Применяем шрифт
+            self._apply_font_formatting(paragraph, config)
+            
+            # Выравнивание по ширине
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # БЕЗ красной строки для продолжения записи
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            logger.debug(f"   ↳ Продолжение записи: БЕЗ красной строки")
+            
+            # Междустрочный интервал
+            line_spacing = config["line_spacing"]
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+            
+            # Минимальные отступы между записями (согласно ГОСТ)
+            pf.space_before = Pt(config.get("space_before_pt", 0))
+            pf.space_after = Pt(config.get("space_after_pt", 0))
+            
+            logger.debug(f"✅ Продолжение библиографической записи отформатировано")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования продолжения библиографической записи: {e}")
+            raise
+
+    def format_references_text(self, paragraph) -> None:
+        """Форматирует обычный текст в разделе списка литературы (теперь использует то же форматирование, что и bibliography_entry)"""
+        try:
+            # Используем то же форматирование, что и для библиографических записей
+            self.format_bibliography_entry(paragraph)
+            logger.debug(f"Текст в списке литературы отформатирован как библиографическая запись: {paragraph.text[:30]}...")
+
+        except Exception as e:
+            logger.error(f"Ошибка форматирования текста в списке литературы: {e}")
+            raise
+
+    def format_special_section(self, paragraph, section_name: str) -> None:
+        """Форматирует специальные разделы (реферат, аннотация, введение, заключение, список литературы)"""
+        try:
+            if section_name in self.requirements["special_sections"]:
+                config = self.requirements["special_sections"][section_name]
+                
+                logger.debug(f"⭐ Форматирование специального раздела '{section_name}': {paragraph.text[:40]}...")
+                
+                # Специальная обработка для заголовка списка литературы
+                if section_name == "references":
+                    logger.info(f"📚 Форматирование заголовка списка литературы: {paragraph.text[:50]}...")
+                    
+                    # Используем настройки для заголовка
+                    title_config = config["title"]
+                    
+                    # Применяем шрифт и размер
+                    self._apply_font_formatting(paragraph, title_config)
+                    
+                    # Преобразуем в заглавные буквы
+                    if title_config.get("text_transform") == "uppercase":
+                        self._make_text_uppercase(paragraph, title_config)
+                    
+                    # Выравнивание по центру
+                    paragraph.alignment = FormattingConstants.ALIGN_MAP[title_config["alignment"]]
+                    
+                    # Настройки параграфа
+                    pf = paragraph.paragraph_format
+                    pf.space_before = Pt(title_config["space_before_pt"])
+                    pf.space_after = Pt(title_config["space_after_pt"])
+                    pf.first_line_indent = Cm(0)
+                    pf.left_indent = Cm(0)
+                    pf.right_indent = Cm(0)
+                    pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP.get(1.0)
+                    
+                    # Добавляем разрыв страницы перед списком литературы
+                    if title_config.get("page_break_before", False):
+                        self._add_page_break_before(paragraph)
+                        logger.debug("   ↳ Добавлен разрыв страницы перед списком литературы")
+                    
+                    logger.info(f"✅ Заголовок списка литературы отформатирован")
+                else:
+                    # Обычное форматирование для других специальных разделов
+                    self._apply_font_formatting(paragraph, config)
+                    paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+                    
+                    pf = paragraph.paragraph_format
+                    pf.first_line_indent = Cm(config["paragraph_indent_cm"])
+                    
+                    line_spacing = config["line_spacing"]
+                    if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                        pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+                    
+                    pf.space_before = Pt(0)
+                    pf.space_after = Pt(0)
+                    
+                    logger.debug(f"✅ Специальный раздел '{section_name}' отформатирован")
+            else:
+                # Fallback к обычному форматированию
+                self.format_regular(paragraph)
+                logger.debug(f"⚠️ Неизвестный специальный раздел '{section_name}', применено обычное форматирование")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования специального раздела '{section_name}': {e}")
+            raise
+
+    def format_table_caption(self, paragraph) -> None:
+        """Форматирует подпись таблицы"""
+        try:
+            config = self.requirements["tables"]["caption"]
+            
+            logger.debug(f"📊 Форматирование подписи таблицы: {paragraph.text[:40]}...")
+            
+            # Применяем форматирование
+            self._apply_font_formatting(paragraph, config)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            
+            pf = paragraph.paragraph_format
+            spacing_config = self.requirements["tables"]["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            
+            # Убираем отступ первой строки для подписей
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            
+            logger.debug(f"✅ Подпись таблицы отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования подписи таблицы: {e}")
+            raise
+
+    def format_figure_caption(self, paragraph) -> None:
+        """Форматирует подпись рисунка"""
+        try:
+            config = self.requirements["figures"]["caption"]
+            
+            logger.debug(f"🖼️ Форматирование подписи рисунка: {paragraph.text[:40]}...")
+            
+            # Применяем форматирование
+            self._apply_font_formatting(paragraph, config)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            
+            pf = paragraph.paragraph_format
+            spacing_config = self.requirements["figures"]["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            
+            # Убираем отступ первой строки для подписей
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            
+            logger.debug(f"✅ Подпись рисунка отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования подписи рисунка: {e}")
+            raise
+
+    def format_formula(self, paragraph) -> None:
+        """Форматирует формулу"""
+        try:
+            config = self.requirements["formulas"]
+            
+            logger.debug(f"🔢 Форматирование формулы: {paragraph.text[:40]}...")
+            
+            # Выравнивание по центру
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            
+            pf = paragraph.paragraph_format
+            spacing_config = config["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            
+            # Убираем отступы для формул
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            
+            logger.debug(f"✅ Формула отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования формулы: {e}")
+            raise

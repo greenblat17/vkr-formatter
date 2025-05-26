@@ -37,6 +37,7 @@ class DocumentState:
     def __init__(self):
         self.in_title_section = True
         self.in_contents_section = False
+        self.in_references_section = False
         self.found_main_content = False
         self.pages_skipped = 0
 
@@ -49,8 +50,14 @@ class DocumentState:
         """Начинает основное содержание"""
         self.in_title_section = False
         self.in_contents_section = False
+        self.in_references_section = False
         self.found_main_content = True
         logger.info("🟢 Переход к основному содержанию")
+
+    def start_references_section(self):
+        """Начинает раздел списка литературы"""
+        self.in_references_section = True
+        logger.info("📚 Переход в режим списка литературы")
 
     def is_in_service_section(self) -> bool:
         """Находимся ли в служебной секции"""
@@ -61,5 +68,6 @@ class DocumentState:
         return {
             'in_title_section': self.in_title_section,
             'in_contents_section': self.in_contents_section,
+            'in_references_section': self.in_references_section,
             'found_main_content': self.found_main_content
         }
