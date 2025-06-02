@@ -29,6 +29,8 @@ class StatisticsTracker:
             'figure_images_formatted': 0,
             'figure_captions_formatted': 0,
             'formulas_formatted': 0,
+            'formula_numbering_formatted': 0,
+            'formula_explanations_formatted': 0,
             'errors': 0
         }
 

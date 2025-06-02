@@ -38,6 +38,7 @@ def get_default_vkr_requirements():
             "line_spacing": 1.5,
             "text_alignment": "justify",
             "paragraph_indent_cm": 1.25,
+            "first_line_indent_cm": 1.25,  # Красная строка (то же что paragraph_indent_cm)
             "margins_cm": {
                 "top": 2.0,
                 "bottom": 2.0,
@@ -276,24 +277,58 @@ def get_default_vkr_requirements():
 
         # 13. Формулы
         "formulas": {
-            "alignment": "center",
+            "formula": {
+                "alignment": "center",
+                "font_name": "Times New Roman",
+                "font_size": 14,
+                "spacing": {
+                    "before_pt": 12,
+                    "after_pt": 6
+                },
+                "margins": {
+                    "left_indent_cm": 0,
+                    "right_indent_cm": 0
+                }
+            },
             "numbering": {
                 "position": "right",
-                "format": "({chapter}.{number})"
-            },
-            "spacing": {
-                "before_pt": 6,
-                "after_pt": 6
+                "format": "({chapter}.{number})",
+                "font_name": "Times New Roman",
+                "font_size": 14,
+                "alignment": "right",
+                "spacing": {
+                    "before_pt": 0,
+                    "after_pt": 6
+                }
             },
             "variables_explanation": {
                 "required": True,
                 "format": "где {variable} – {description};",
+                "font_name": "Times New Roman",
+                "font_size": 14,
                 "alignment": "left",
-                "indent_cm": 2.0
+                "line_spacing": 1.5,
+                "indent_cm": 1.25,
+                "spacing": {
+                    "before_pt": 6,
+                    "after_pt": 12
+                }
+            },
+            "spacing": {
+                "before_pt": 12,
+                "after_pt": 6,
+                "formula_before_pt": 12,
+                "formula_after_pt": 0,  # Минимальный отступ до нумерации
+                "numbering_after_pt": 6,
+                "explanation_after_pt": 12
             },
             "detection_patterns": [
                 r"\(\d+\.\d+\)",
-                r"\(\d+\)"
+                r"\(\d+\)",
+                r"^где\s+[а-яёА-ЯЁ]",  # Пояснения к переменным
+                r"^[а-яёА-ЯЁ]\s*[-–—]\s*",  # Переменные с описанием
+                r"^Формула\s+\d+",
+                r"^Formula\s+\d+"
             ]
         },
 

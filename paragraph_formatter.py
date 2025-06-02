@@ -747,26 +747,116 @@ class ParagraphFormatter:
             raise
 
     def format_formula(self, paragraph) -> None:
-        """Форматирует формулу"""
+        """Форматирует математическую формулу согласно ГОСТ"""
         try:
-            config = self.requirements["formulas"]
+            config = self.requirements["formulas"]["formula"]
             
-            logger.debug(f"🔢 Форматирование формулы: {paragraph.text[:40]}...")
+            text = paragraph.text.strip()
+            logger.info(f"🔢 Форматирование формулы: {text[:60]}...")
             
-            # Выравнивание по центру
+            # Применяем форматирование шрифта
+            self._apply_font_formatting(paragraph, config)
+            logger.debug(f"   ↳ Шрифт: {config['font_name']} {config['font_size']}pt")
+            
+            # Выравнивание по центру (согласно ГОСТ)
             paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
             
+            # Настройки параграфа
             pf = paragraph.paragraph_format
+            
+            # Отступы до и после формулы
             spacing_config = config["spacing"]
             pf.space_before = Pt(spacing_config["before_pt"])
             pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
             
-            # Убираем отступы для формул
+            # Убираем отступы первой строки для формул
             pf.first_line_indent = Cm(0)
             pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
             
-            logger.debug(f"✅ Формула отформатирована")
+            logger.info(f"✅ Формула отформатирована: {text[:40]}...")
 
         except Exception as e:
             logger.error(f"❌ Ошибка форматирования формулы: {e}")
+            raise
+
+    def format_formula_numbering(self, paragraph) -> None:
+        """Форматирует нумерацию формулы согласно ГОСТ"""
+        try:
+            config = self.requirements["formulas"]["numbering"]
+            
+            text = paragraph.text.strip()
+            logger.info(f"🔢 Форматирование нумерации формулы: {text}")
+            
+            # Применяем форматирование шрифта
+            self._apply_font_formatting(paragraph, config)
+            logger.debug(f"   ↳ Шрифт: {config['font_name']} {config['font_size']}pt")
+            
+            # Выравнивание по правому краю (согласно ГОСТ)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # Отступы для нумерации
+            spacing_config = config["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
+            
+            # Убираем отступы первой строки
+            pf.first_line_indent = Cm(0)
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            
+            logger.info(f"✅ Нумерация формулы отформатирована")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования нумерации формулы: {e}")
+            raise
+
+    def format_formula_explanation(self, paragraph) -> None:
+        """Форматирует пояснения к переменным формулы согласно ГОСТ"""
+        try:
+            config = self.requirements["formulas"]["variables_explanation"]
+            
+            text = paragraph.text.strip()
+            logger.info(f"🔤 Форматирование пояснения к формуле: {text[:60]}...")
+            
+            # Применяем форматирование шрифта
+            self._apply_font_formatting(paragraph, config)
+            logger.debug(f"   ↳ Шрифт: {config['font_name']} {config['font_size']}pt")
+            
+            # Выравнивание по левому краю с отступом (согласно ГОСТ)
+            paragraph.alignment = FormattingConstants.ALIGN_MAP[config["alignment"]]
+            logger.debug(f"   ↳ Выравнивание: {config['alignment']}")
+            
+            # Настройки параграфа
+            pf = paragraph.paragraph_format
+            
+            # Отступ первой строки (красная строка для пояснений)
+            pf.first_line_indent = Cm(config["indent_cm"])
+            pf.left_indent = Cm(0)
+            pf.right_indent = Cm(0)
+            logger.debug(f"   ↳ Красная строка: {config['indent_cm']}см")
+            
+            # Междустрочный интервал
+            line_spacing = config.get("line_spacing", 1.5)
+            if line_spacing in FormattingConstants.LINE_SPACING_MAP:
+                pf.line_spacing_rule = FormattingConstants.LINE_SPACING_MAP[line_spacing]
+                logger.debug(f"   ↳ Междустрочный интервал: {line_spacing}")
+            
+            # Отступы до и после пояснений
+            spacing_config = config["spacing"]
+            pf.space_before = Pt(spacing_config["before_pt"])
+            pf.space_after = Pt(spacing_config["after_pt"])
+            logger.debug(f"   ↳ Отступы: до={spacing_config['before_pt']}pt, после={spacing_config['after_pt']}pt")
+            
+            logger.info(f"✅ Пояснение к формуле отформатировано")
+
+        except Exception as e:
+            logger.error(f"❌ Ошибка форматирования пояснения к формуле: {e}")
             raise

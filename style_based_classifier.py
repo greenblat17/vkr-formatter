@@ -432,10 +432,46 @@ class StyleBasedClassifier:
             if re.search(pattern, text_clean, re.IGNORECASE):
                 return "figure_caption"
         
-        # Проверяем формулы
+        # Проверяем формулы и их элементы
         formula_patterns = self.requirements["formulas"]["detection_patterns"]
-        for pattern in formula_patterns:
-            import re
+        import re
+        
+        # Проверяем нумерацию формул (в скобках)
+        numbering_patterns = [r"\(\d+\.\d+\)", r"\(\d+\)"]
+        for pattern in numbering_patterns:
+            if re.search(pattern, text_clean):
+                return "formula_numbering"
+        
+        # Проверяем пояснения к переменным
+        explanation_patterns = [
+            r"^где\s+[а-яёА-ЯЁ]",  # "где x – переменная"
+            r"^[а-яёА-ЯЁ]\s*[-–—]\s*",  # "x – переменная"
+            r"^в\s+которой\s+",  # "в которой x – переменная"
+            r"^здесь\s+[а-яёА-ЯЁ]"  # "здесь x – переменная"
+        ]
+        for pattern in explanation_patterns:
+            if re.search(pattern, text_clean, re.IGNORECASE):
+                return "formula_explanation"
+        
+        # Проверяем заголовки формул
+        formula_title_patterns = [r"^Формула\s+\d+", r"^Formula\s+\d+"]
+        for pattern in formula_title_patterns:
+            if re.search(pattern, text_clean, re.IGNORECASE):
+                return "formula"
+        
+        # Проверяем математические выражения (простая эвристика)
+        math_indicators = [
+            r"[=+\-*/^]",  # Математические операторы
+            r"[∑∏∫∂∆∇]",  # Математические символы
+            r"[αβγδεζηθικλμνξοπρστυφχψω]",  # Греческие буквы
+            r"[ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ]",  # Греческие буквы заглавные
+            r"\b(sin|cos|tan|log|ln|exp|sqrt|lim|max|min)\b",  # Математические функции
+            r"[₀₁₂₃₄₅₆₇₈₉]",  # Нижние индексы
+            r"[⁰¹²³⁴⁵⁶⁷⁸⁹]"   # Верхние индексы
+        ]
+        
+        # Если текст содержит математические элементы, считаем его формулой
+        for pattern in math_indicators:
             if re.search(pattern, text_clean):
                 return "formula"
         

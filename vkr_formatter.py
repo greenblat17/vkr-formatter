@@ -282,7 +282,17 @@ class VKRFormatter:
         elif paragraph_type == "formula":
             self.formatter.format_formula(paragraph)
             self.stats.increment('formulas_formatted')
-            logger.debug(f"🔢 ФОРМУЛА #{index}: {text[:40]}...")
+            logger.info(f"🔢 ФОРМУЛА #{index}: {text[:40]}...")
+
+        elif paragraph_type == "formula_numbering":
+            self.formatter.format_formula_numbering(paragraph)
+            self.stats.increment('formula_numbering_formatted')
+            logger.info(f"🔢 НУМЕРАЦИЯ ФОРМУЛЫ #{index}: {text[:40]}...")
+
+        elif paragraph_type == "formula_explanation":
+            self.formatter.format_formula_explanation(paragraph)
+            self.stats.increment('formula_explanations_formatted')
+            logger.info(f"🔤 ПОЯСНЕНИЕ К ФОРМУЛЕ #{index}: {text[:60]}...")
 
         else:  # regular
             self.formatter.format_regular(paragraph)
